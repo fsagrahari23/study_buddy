@@ -1,0 +1,1721 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Smart Study Buddy API",
+    "description": "Comprehensive API documentation for Smart Study Buddy - AI-powered learning platform with authentication, quizzes, notes, flashcards, and more",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Smart Study Buddy Support",
+      "email": "support@smartstudybuddy.com"
+    },
+    "license": {
+      "name": "MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000/api",
+      "description": "Development server"
+    },
+    {
+      "url": "https://api.smartstudybuddy.com",
+      "description": "Production server"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Authentication",
+      "description": "User authentication endpoints"
+    },
+    {
+      "name": "Users",
+      "description": "User management endpoints"
+    },
+    {
+      "name": "Quizzes",
+      "description": "Quiz creation and management"
+    },
+    {
+      "name": "Quiz Results",
+      "description": "Quiz results and analytics"
+    },
+    {
+      "name": "Notes",
+      "description": "Note creation and management"
+    },
+    {
+      "name": "Flashcards",
+      "description": "Flashcard deck and card management"
+    },
+    {
+      "name": "AI Features",
+      "description": "AI-powered features like note generation and explanations"
+    },
+    {
+      "name": "Activity & Roadmap",
+      "description": "User activity tracking and learning roadmap"
+    }
+  ],
+  "paths": {
+    "/auth/signup": {
+      "post": {
+        "summary": "User Registration",
+        "description": "Create a new user account with email and password",
+        "tags": ["Authentication"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 50,
+                    "example": "John Doe"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "john@example.com"
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 6,
+                    "example": "SecurePass123"
+                  },
+                  "confirmPassword": {
+                    "type": "string",
+                    "minLength": 6,
+                    "example": "SecurePass123"
+                  }
+                },
+                "required": ["name", "email", "password", "confirmPassword"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "User created successfully"
+                    },
+                    "user": {
+                      "$ref": "#/components/schemas/User"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error - missing fields, passwords don't match, or email already registered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Email already registered"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "summary": "User Login",
+        "description": "Authenticate user with email and password",
+        "tags": ["Authentication"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "john@example.com"
+                  },
+                  "password": {
+                    "type": "string",
+                    "example": "SecurePass123"
+                  }
+                },
+                "required": ["email", "password"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Login successful"
+                    },
+                    "user": {
+                      "$ref": "#/components/schemas/User"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Invalid credentials"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/quizzes": {
+      "get": {
+        "summary": "Get All Quizzes",
+        "description": "Retrieve all available quizzes with optional filtering",
+        "tags": ["Quizzes"],
+        "parameters": [
+          {
+            "name": "difficulty",
+            "in": "query",
+            "description": "Filter by difficulty level",
+            "schema": {
+              "type": "string",
+              "enum": ["easy", "medium", "hard"]
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "description": "Filter by category",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Page number for pagination",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Items per page",
+            "schema": {
+              "type": "integer",
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of quizzes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "quizzes": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Quiz"
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "page": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create Quiz",
+        "description": "Create a new quiz for a specific chapter or topic",
+        "tags": ["Quizzes"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "example": "Biology Chapter 5 Quiz"
+                  },
+                  "description": {
+                    "type": "string",
+                    "example": "Quiz on cell structure and function"
+                  },
+                  "fileId": {
+                    "type": "string",
+                    "example": "file_123"
+                  },
+                  "chapter": {
+                    "type": "string",
+                    "example": "Chapter 5: Cell Structure"
+                  },
+                  "difficulty": {
+                    "type": "string",
+                    "enum": ["easy", "medium", "hard"],
+                    "default": "medium"
+                  },
+                  "category": {
+                    "type": "string",
+                    "example": "Biology"
+                  },
+                  "numberOfQuestions": {
+                    "type": "integer",
+                    "example": 10
+                  },
+                  "timeLimit": {
+                    "type": "integer",
+                    "description": "Time limit in minutes",
+                    "example": 30
+                  },
+                  "passingScore": {
+                    "type": "integer",
+                    "description": "Passing score percentage",
+                    "example": 60
+                  }
+                },
+                "required": ["title", "fileId", "chapter", "numberOfQuestions"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Quiz created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "quiz": {
+                      "$ref": "#/components/schemas/Quiz"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/quizzes/{quizId}": {
+      "get": {
+        "summary": "Get Quiz Details",
+        "description": "Retrieve detailed information about a specific quiz",
+        "tags": ["Quizzes"],
+        "parameters": [
+          {
+            "name": "quizId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Quiz details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Quiz"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Quiz not found"
+          }
+        }
+      },
+      "put": {
+        "summary": "Update Quiz",
+        "description": "Update quiz details",
+        "tags": ["Quizzes"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "quizId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "difficulty": {
+                    "type": "string",
+                    "enum": ["easy", "medium", "hard"]
+                  },
+                  "timeLimit": {
+                    "type": "integer"
+                  },
+                  "passingScore": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Quiz updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Quiz"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Quiz not found"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete Quiz",
+        "description": "Delete a quiz",
+        "tags": ["Quizzes"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "quizId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Quiz deleted successfully"
+          },
+          "404": {
+            "description": "Quiz not found"
+          }
+        }
+      }
+    },
+    "/quiz-results": {
+      "post": {
+        "summary": "Submit Quiz Result",
+        "description": "Submit quiz answers and get results",
+        "tags": ["Quiz Results"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "quizId": {
+                    "type": "string",
+                    "example": "quiz_123"
+                  },
+                  "answers": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "questionId": {
+                          "type": "string"
+                        },
+                        "selectedAnswer": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "timeTaken": {
+                    "type": "integer",
+                    "description": "Time taken in seconds"
+                  }
+                },
+                "required": ["quizId", "answers", "timeTaken"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Quiz result submitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "result": {
+                      "$ref": "#/components/schemas/QuizResult"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          }
+        }
+      },
+      "get": {
+        "summary": "Get Quiz Results",
+        "description": "Retrieve user's quiz results with analytics",
+        "tags": ["Quiz Results"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "quizId",
+            "in": "query",
+            "description": "Filter by quiz ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of quiz results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/QuizResult"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/quiz-results/{resultId}": {
+      "get": {
+        "summary": "Get Detailed Quiz Result",
+        "description": "Get detailed analysis of a quiz result with weak points and AI explanations",
+        "tags": ["Quiz Results"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "resultId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Detailed quiz result with analysis",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "$ref": "#/components/schemas/QuizResult"
+                    },
+                    "analysis": {
+                      "type": "object",
+                      "properties": {
+                        "weakAreas": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "strongAreas": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "recommendations": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "aiInsights": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Result not found"
+          }
+        }
+      }
+    },
+    "/notes": {
+      "get": {
+        "summary": "Get All Notes",
+        "description": "Retrieve all user notes with optional filtering",
+        "tags": ["Notes"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "category",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of notes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Note"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create Note",
+        "description": "Create a new note",
+        "tags": ["Notes"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "example": "Photosynthesis Notes"
+                  },
+                  "content": {
+                    "type": "string",
+                    "example": "Photosynthesis is the process..."
+                  },
+                  "category": {
+                    "type": "string",
+                    "example": "Biology"
+                  },
+                  "tags": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "example": ["photosynthesis", "plants"]
+                  },
+                  "fileId": {
+                    "type": "string"
+                  },
+                  "chapter": {
+                    "type": "string"
+                  },
+                  "isPublic": {
+                    "type": "boolean",
+                    "default": false
+                  }
+                },
+                "required": ["title", "content"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Note created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Note"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notes/{noteId}": {
+      "get": {
+        "summary": "Get Note Details",
+        "description": "Retrieve detailed information about a specific note",
+        "tags": ["Notes"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "noteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Note details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Note"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Note not found"
+          }
+        }
+      },
+      "put": {
+        "summary": "Update Note",
+        "description": "Update note content",
+        "tags": ["Notes"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "noteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "content": {
+                    "type": "string"
+                  },
+                  "category": {
+                    "type": "string"
+                  },
+                  "tags": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Note updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Note"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete Note",
+        "description": "Delete a note",
+        "tags": ["Notes"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "noteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Note deleted successfully"
+          }
+        }
+      }
+    },
+    "/flashcards/decks": {
+      "get": {
+        "summary": "Get All Decks",
+        "description": "Retrieve all flashcard decks",
+        "tags": ["Flashcards"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of decks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Deck"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create Deck",
+        "description": "Create a new flashcard deck",
+        "tags": ["Flashcards"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "example": "Biology Vocabulary"
+                  },
+                  "description": {
+                    "type": "string",
+                    "example": "Key biology terms and definitions"
+                  },
+                  "isPublic": {
+                    "type": "boolean",
+                    "default": false
+                  }
+                },
+                "required": ["name"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Deck created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Deck"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/flashcards/decks/{deckId}": {
+      "get": {
+        "summary": "Get Deck Details",
+        "description": "Retrieve deck with all flashcards",
+        "tags": ["Flashcards"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "deckId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deck details with cards",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "deck": {
+                      "$ref": "#/components/schemas/Deck"
+                    },
+                    "cards": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Flashcard"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/flashcards": {
+      "post": {
+        "summary": "Create Flashcard",
+        "description": "Add a new flashcard to a deck",
+        "tags": ["Flashcards"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "front": {
+                    "type": "string",
+                    "example": "What is photosynthesis?"
+                  },
+                  "back": {
+                    "type": "string",
+                    "example": "Process by which plants convert light into chemical energy"
+                  },
+                  "deckId": {
+                    "type": "string"
+                  },
+                  "difficulty": {
+                    "type": "string",
+                    "enum": ["easy", "medium", "hard"],
+                    "default": "medium"
+                  }
+                },
+                "required": ["front", "back", "deckId"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Flashcard created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Flashcard"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/generate-notes": {
+      "post": {
+        "summary": "Generate Concise Notes",
+        "description": "Generate AI-powered concise notes from selected chapters",
+        "tags": ["AI Features"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "fileId": {
+                    "type": "string"
+                  },
+                  "chapters": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "example": ["Chapter 1", "Chapter 2"]
+                  },
+                  "style": {
+                    "type": "string",
+                    "enum": ["concise", "detailed", "bullet-points"],
+                    "default": "concise"
+                  }
+                },
+                "required": ["fileId", "chapters"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Generated notes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "notes": {
+                      "type": "string"
+                    },
+                    "generatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/explain-answer": {
+      "post": {
+        "summary": "Get AI Explanation for Answer",
+        "description": "Get detailed AI explanation for a quiz question answer",
+        "tags": ["AI Features"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "question": {
+                    "type": "string"
+                  },
+                  "correctAnswer": {
+                    "type": "string"
+                  },
+                  "userAnswer": {
+                    "type": "string"
+                  },
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": ["question", "correctAnswer"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "AI explanation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "explanation": {
+                      "type": "string"
+                    },
+                    "relatedConcepts": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "commonMistakes": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/activity": {
+      "get": {
+        "summary": "Get User Activity",
+        "description": "Retrieve user activity tracking data",
+        "tags": ["Activity & Roadmap"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User activity data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "totalNotes": {
+                      "type": "integer"
+                    },
+                    "totalQuizzes": {
+                      "type": "integer"
+                    },
+                    "totalFlashcards": {
+                      "type": "integer"
+                    },
+                    "averageScore": {
+                      "type": "number"
+                    },
+                    "studyStreak": {
+                      "type": "integer"
+                    },
+                    "activityHistory": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string"
+                          },
+                          "timestamp": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/roadmap": {
+      "get": {
+        "summary": "Get Learning Roadmap",
+        "description": "Get personalized learning roadmap based on user activity",
+        "tags": ["Activity & Roadmap"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Personalized learning roadmap",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "roadmap": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "week": {
+                            "type": "integer"
+                          },
+                          "milestone": {
+                            "type": "string"
+                          },
+                          "tasks": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "completed": {
+                            "type": "boolean"
+                          }
+                        }
+                      }
+                    },
+                    "recommendations": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Generate Roadmap",
+        "description": "Generate a new personalized learning roadmap",
+        "tags": ["Activity & Roadmap"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Roadmap generated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "roadmap": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "role": {
+            "type": "string",
+            "enum": ["student", "admin"]
+          },
+          "avatar": {
+            "type": "string",
+            "nullable": true
+          },
+          "bio": {
+            "type": "string"
+          },
+          "studyStreak": {
+            "type": "integer"
+          },
+          "totalStudyHours": {
+            "type": "number"
+          },
+          "isEmailVerified": {
+            "type": "boolean"
+          },
+          "lastLogin": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Quiz": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "fileId": {
+            "type": "string"
+          },
+          "chapter": {
+            "type": "string"
+          },
+          "difficulty": {
+            "type": "string",
+            "enum": ["easy", "medium", "hard"]
+          },
+          "category": {
+            "type": "string"
+          },
+          "questions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Question"
+            }
+          },
+          "timeLimit": {
+            "type": "integer",
+            "description": "Time limit in minutes"
+          },
+          "passingScore": {
+            "type": "integer",
+            "description": "Passing score percentage"
+          },
+          "createdBy": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Question": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "question": {
+            "type": "string"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 2,
+            "maxItems": 6
+          },
+          "correctAnswer": {
+            "type": "string"
+          },
+          "explanation": {
+            "type": "string"
+          },
+          "relatedConcepts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "QuizResult": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "quizId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "answers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "questionId": {
+                  "type": "string"
+                },
+                "selectedAnswer": {
+                  "type": "string"
+                },
+                "isCorrect": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "score": {
+            "type": "integer"
+          },
+          "totalQuestions": {
+            "type": "integer"
+          },
+          "percentage": {
+            "type": "number"
+          },
+          "timeTaken": {
+            "type": "integer",
+            "description": "Time taken in seconds"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["completed", "incomplete", "abandoned"]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Note": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "fileId": {
+            "type": "string"
+          },
+          "chapter": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "isPublic": {
+            "type": "boolean"
+          },
+          "readTime": {
+            "type": "integer",
+            "description": "Estimated read time in minutes"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Flashcard": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "front": {
+            "type": "string"
+          },
+          "back": {
+            "type": "string"
+          },
+          "deckId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "difficulty": {
+            "type": "string",
+            "enum": ["easy", "medium", "hard"]
+          },
+          "reviewCount": {
+            "type": "integer"
+          },
+          "lastReviewDate": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "nextReviewDate": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Deck": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "cardCount": {
+            "type": "integer"
+          },
+          "isPublic": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "JWT token for authentication"
+      }
+    },
+    "responses": {
+      "UnauthorizedError": {
+        "description": "Authentication information is missing or invalid",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Unauthorized"
+                }
+              }
+            }
+          }
+        }
+      },
+      "NotFoundError": {
+        "description": "Resource not found",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Resource not found"
+                }
+              }
+            }
+          }
+        }
+      },
+      "ValidationError": {
+        "description": "Validation error",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Validation failed"
+                },
+                "details": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
