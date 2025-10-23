@@ -4,6 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useDispatch, useSelector } from "react-redux"
 import { logout } from "@/lib/slices/authSlice"
+import { signOut } from "next-auth/react"
 import {
   BookOpen,
   LayoutDashboard,
@@ -49,6 +50,7 @@ export function Sidebar() {
 
   const handleLogout = () => {
     dispatch(logout())
+    signOut({ callbackUrl: '/' })
   }
 
   const toggleTheme = () => {
