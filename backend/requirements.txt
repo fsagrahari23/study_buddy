@@ -1,9 +1,11 @@
 fastapi
 uvicorn[standard]
-langchain
-langchain_google_genai
-langchain-community
+langchain==0.3.27
+langchain-google-genai==2.1.8
+langchain-community==0.3.29
 faiss-cpu
 python-dotenv
-langchain-text-splitters
+langchain-text-splitters==0.3.11
 pypdf
+langchain-core==0.3.76
+sentence-transformers
