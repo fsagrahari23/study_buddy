@@ -1,6 +1,6 @@
-// /app/api/stats-simple/route.js
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
+import mongoose from "mongoose"
 
 import connectDB from "@/lib/mongodb"
 import Activity from "../../../../lib/models/Activity"
@@ -9,17 +9,13 @@ import { authOptions } from "../../auth/[...nextauth]/route"
 
 export async function GET(request) {
     try {
-        // Get user session
         const session = await getServerSession(authOptions)
-        if (!session) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-        }
+        if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
         await connectDB()
+        const id = session.user.id
+        const userId = new mongoose.Types.ObjectId(id)
 
-        const userId = session.user.id
-
-        // Aggregate Study Hours & Notes Viewed from Activity
         const activityData = await Activity.aggregate([
             { $match: { user: userId } },
             {
@@ -39,7 +35,6 @@ export async function GET(request) {
             },
         ])
 
-        // Aggregate Quizzes Taken
         const quizData = await QuizResult.aggregate([
             { $match: { userId } },
             {

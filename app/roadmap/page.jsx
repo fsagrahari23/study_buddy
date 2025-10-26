@@ -56,6 +56,7 @@ export default function RoadmapPage() {
         const res = await fetch("/api/roadmap/stats")
         if (!res.ok) throw new Error("Failed to fetch stats")
         const data = await res.json()
+        console.log(data)
         setStats(data)
       } catch (err) {
         console.error(err)
@@ -65,6 +66,7 @@ export default function RoadmapPage() {
     }
     loadStats()
   }, [])
+  console.log(stats)
 
   return (
     <DashboardLayout>
@@ -77,10 +79,10 @@ export default function RoadmapPage() {
         </div>
 
         <div className="grid lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-1">
+          {!roadmap && <div className="lg:col-span-1">
             <RoadmapGenerator />
           </div>
-
+          }
           <div className="lg:col-span-2">
             {isGenerating ? (
               <Card>
@@ -121,25 +123,25 @@ export default function RoadmapPage() {
                 <div className="p-4 rounded-lg bg-primary/5 border border-primary/10 text-center">
                   <p className="text-sm text-muted-foreground">Total Study Hours</p>
                   <p className="text-2xl font-bold">
-                    <CountUp end={parseFloat(stats.studyHours)} />h
+                    <CountUp end={parseFloat(stats?.studyHours)} />h
                   </p>
                 </div>
                 <div className="p-4 rounded-lg bg-blue-500/5 border border-blue-500/10 text-center">
                   <p className="text-sm text-muted-foreground">Notes Viewed</p>
                   <p className="text-2xl font-bold">
-                    <CountUp end={stats.notesViewed} />
+                    <CountUp end={stats?.notesViewed} />
                   </p>
                 </div>
                 <div className="p-4 rounded-lg bg-purple-500/5 border border-purple-500/10 text-center">
                   <p className="text-sm text-muted-foreground">Avg Score</p>
                   <p className="text-2xl font-bold">
-                    <CountUp end={parseInt(stats.avgScore)} />%
+                    <CountUp end={parseInt(stats?.avgScore)} />%
                   </p>
                 </div>
                 <div className="p-4 rounded-lg bg-green-500/5 border border-green-500/10 text-center">
                   <p className="text-sm text-muted-foreground">Quizzes Taken</p>
                   <p className="text-2xl font-bold">
-                    <CountUp end={stats.quizzesTaken} />
+                    <CountUp end={stats?.quizzesTaken} />
                   </p>
                 </div>
               </div>

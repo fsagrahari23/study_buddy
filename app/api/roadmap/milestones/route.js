@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
-import { authOptions } from "@/lib/auth"
+
 import connectDB from "@/lib/mongodb"
 import Roadmap from "@/lib/models/Roadmap"
 import Activity from "@/lib/models/Activity"
+import { authOptions } from "../../auth/[...nextauth]/route"
 
 export async function POST(request) {
     try {
