@@ -1,7 +1,7 @@
 "use client"
 
 import { useSelector, useDispatch } from "react-redux"
-import { updateRoadmapProgress } from "@/lib/slices/roadmapSlice"
+import { completeMilestone } from "@/lib/slices/roadmapSlice"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
@@ -16,13 +16,7 @@ export function RoadmapDisplay() {
   }
 
   const handleMilestoneComplete = (milestoneId) => {
-    dispatch(
-      updateRoadmapProgress({
-        milestoneId,
-        completed: true,
-        progress: 100,
-      }),
-    )
+    dispatch(completeMilestone(milestoneId))
   }
 
   const completedMilestones = roadmap.milestones.filter((m) => m.completed).length
@@ -62,7 +56,7 @@ export function RoadmapDisplay() {
       <div className="space-y-4">
         <h3 className="text-lg font-semibold">Learning Milestones</h3>
         {roadmap.milestones.map((milestone, idx) => (
-          <Card key={milestone.id} className="overflow-hidden">
+          <Card key={milestone._id} className="overflow-hidden">
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
                 <div className="flex items-start gap-3 flex-1">
@@ -108,7 +102,7 @@ export function RoadmapDisplay() {
               </div>
 
               {!milestone.completed && (
-                <Button onClick={() => handleMilestoneComplete(milestone.id)} variant="outline" className="w-full">
+                <Button onClick={() => handleMilestoneComplete(milestone._id)} variant="outline" className="w-full">
                   Mark as Complete
                 </Button>
               )}
@@ -124,13 +118,12 @@ export function RoadmapDisplay() {
           {recommendations.map((rec) => (
             <Card
               key={rec.id}
-              className={`border-l-4 ${
-                rec.priority === "high"
-                  ? "border-l-red-500 bg-red-500/5"
-                  : rec.priority === "medium"
-                    ? "border-l-yellow-500 bg-yellow-500/5"
-                    : "border-l-blue-500 bg-blue-500/5"
-              }`}
+              className={`border-l-4 ${rec.priority === "high"
+                ? "border-l-red-500 bg-red-500/5"
+                : rec.priority === "medium"
+                  ? "border-l-yellow-500 bg-yellow-500/5"
+                  : "border-l-blue-500 bg-blue-500/5"
+                }`}
             >
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
@@ -142,13 +135,12 @@ export function RoadmapDisplay() {
                     </div>
                   </div>
                   <span
-                    className={`text-xs font-semibold px-2 py-1 rounded ${
-                      rec.priority === "high"
-                        ? "bg-red-500/20 text-red-700"
-                        : rec.priority === "medium"
-                          ? "bg-yellow-500/20 text-yellow-700"
-                          : "bg-blue-500/20 text-blue-700"
-                    }`}
+                    className={`text-xs font-semibold px-2 py-1 rounded ${rec.priority === "high"
+                      ? "bg-red-500/20 text-red-700"
+                      : rec.priority === "medium"
+                        ? "bg-yellow-500/20 text-yellow-700"
+                        : "bg-blue-500/20 text-blue-700"
+                      }`}
                   >
                     {rec.priority}
                   </span>

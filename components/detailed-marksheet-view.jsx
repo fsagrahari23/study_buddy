@@ -10,54 +10,67 @@ import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Toolti
 import { Sparkles, TrendingDown, CheckCircle2, Loader2 } from "lucide-react"
 import { setDetailedAnalysis, setAnalysisLoading, setAnalysisError } from "@/lib/slices/marksheetSlice"
 
-// Mock AI analysis generator
+// Mock AI analysis generator - updated to use real quiz data
 const generateDetailedAnalysis = async (quizResult, quiz) => {
   await new Promise((resolve) => setTimeout(resolve, 2000))
 
-  const weakAreas = [
-    { topic: "Algebra", percentage: 45, questions: 2 },
-    { topic: "Geometry", percentage: 60, questions: 3 },
-    { topic: "Calculus", percentage: 75, questions: 4 },
-  ]
+  // Calculate real performance metrics
+  const correctAnswers = quizResult.answers.filter(a => a.isCorrect).length
+  const totalQuestions = quizResult.answers.length
+  const percentage = quizResult.percentage
 
-  const strongAreas = [
-    { topic: "Basic Arithmetic", percentage: 95, questions: 5 },
-    { topic: "Linear Equations", percentage: 85, questions: 4 },
-  ]
+  // Generate weak/strong areas based on actual quiz data
+  const weakAreas = []
+  const strongAreas = []
 
-  const recommendations = [
-    {
+  // For now, create mock analysis based on real data - in future this could be more sophisticated
+  if (percentage < 70) {
+    weakAreas.push({
+      topic: quiz.chapter || "Selected Chapter",
+      percentage: percentage,
+      questions: totalQuestions,
+    })
+  } else {
+    strongAreas.push({
+      topic: quiz.chapter || "Selected Chapter",
+      percentage: percentage,
+      questions: totalQuestions,
+    })
+  }
+
+  const recommendations = []
+  if (percentage < 60) {
+    recommendations.push({
       priority: "high",
-      title: "Focus on Algebra Fundamentals",
-      description: "You scored 45% in algebra. Review basic algebraic operations and practice more problems.",
-      action: "Start Algebra Flashcard Deck",
-    },
-    {
+      title: "Review Fundamental Concepts",
+      description: `Your score of ${percentage}% indicates need for review of basic concepts in ${quiz.chapter || "this chapter"}.`,
+      action: "Start Flashcard Review",
+    })
+  } else if (percentage < 80) {
+    recommendations.push({
       priority: "medium",
-      title: "Strengthen Geometry Concepts",
-      description: "Your geometry score is 60%. Work on understanding geometric proofs and theorems.",
-      action: "Take Geometry Quiz",
-    },
-    {
+      title: "Practice More Questions",
+      description: `Good progress with ${percentage}% score. Practice more similar questions to improve.`,
+      action: "Take Another Quiz",
+    })
+  } else {
+    recommendations.push({
       priority: "low",
-      title: "Maintain Your Strength",
-      description: "You're doing great in arithmetic! Keep practicing to maintain this level.",
-      action: "Continue Practice",
-    },
-  ]
+      title: "Maintain Excellence",
+      description: `Excellent performance with ${percentage}% score. Keep up the great work!`,
+      action: "Continue Learning",
+    })
+  }
 
   const aiInsights = {
-    overallPerformance: `Your overall performance shows a score of ${quizResult.score}/${quizResult.totalScore} (${Math.round((quizResult.score / quizResult.totalScore) * 100)}%). This indicates ${Math.round((quizResult.score / quizResult.totalScore) * 100) > 70 ? "good understanding" : "need for improvement"} of the subject matter.`,
-    strengths:
-      "You demonstrated strong performance in basic arithmetic and linear equations, showing solid foundational knowledge.",
-    improvements:
-      "Focus on improving your algebra and geometry skills. These areas show the most room for growth and are fundamental for advanced topics.",
-    studyStrategy:
-      "Allocate 60% of your study time to weak areas, 30% to medium areas, and 10% to maintaining strong areas. Use spaced repetition for better retention.",
+    overallPerformance: `Your overall performance shows a score of ${quizResult.score}/${totalQuestions * 10} (${percentage}%). This indicates ${percentage > 70 ? "good understanding" : "need for improvement"} of the subject matter.`,
+    strengths: percentage > 70 ? "You demonstrated strong performance in this quiz, showing good understanding of the concepts." : "Focus on building foundational knowledge in this area.",
+    improvements: percentage < 70 ? "Review the incorrect answers and focus on understanding the underlying concepts." : "Continue practicing to maintain and improve your performance.",
+    studyStrategy: percentage < 70 ? "Allocate more time to reviewing fundamental concepts and practice regularly." : "Maintain your current study habits and challenge yourself with more difficult questions.",
   }
 
   return {
-    resultId: quizResult.id,
+    resultId: quizResult._id,
     quizTitle: quiz.title,
     weakAreas,
     strongAreas,
@@ -117,18 +130,18 @@ export function DetailedMarksheetView({ resultId, quizResult, quiz }) {
                   <div>
                     <p className="text-xs text-muted-foreground mb-1">Score</p>
                     <p className="text-2xl font-bold">
-                      {quizResult.score}/{quizResult.totalScore}
+                      {quizResult.score}/{quizResult.totalQuestions * 10}
                     </p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground mb-1">Percentage</p>
                     <p className="text-2xl font-bold text-primary">
-                      {Math.round((quizResult.score / quizResult.totalScore) * 100)}%
+                      {quizResult.percentage}%
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground mb-1">Time Spent</p>
-                    <p className="text-2xl font-bold">{quizResult.timeSpent} min</p>
+                    <p className="text-xs text-muted-foreground mb-1">Questions</p>
+                    <p className="text-2xl font-bold">{quizResult.totalQuestions}</p>
                   </div>
                 </div>
               </CardContent>
@@ -196,8 +209,8 @@ export function DetailedMarksheetView({ resultId, quizResult, quiz }) {
                     <PieChart>
                       <Pie
                         data={[
-                          { name: "Correct", value: quizResult.correctAnswers },
-                          { name: "Incorrect", value: quizResult.totalQuestions - quizResult.correctAnswers },
+                          { name: "Correct", value: quizResult.answers.filter(a => a.isCorrect).length },
+                          { name: "Incorrect", value: quizResult.answers.filter(a => !a.isCorrect).length },
                         ]}
                         cx="50%"
                         cy="50%"
@@ -313,26 +326,24 @@ export function DetailedMarksheetView({ resultId, quizResult, quiz }) {
                 {analysis.recommendations.map((rec, idx) => (
                   <Card
                     key={idx}
-                    className={`border-l-4 ${
-                      rec.priority === "high"
+                    className={`border-l-4 ${rec.priority === "high"
                         ? "border-l-red-500 bg-red-500/5"
                         : rec.priority === "medium"
                           ? "border-l-orange-500 bg-orange-500/5"
                           : "border-l-green-500 bg-green-500/5"
-                    }`}
+                      }`}
                   >
                     <CardContent className="pt-6">
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
                             <span
-                              className={`text-xs font-bold px-2 py-1 rounded ${
-                                rec.priority === "high"
+                              className={`text-xs font-bold px-2 py-1 rounded ${rec.priority === "high"
                                   ? "bg-red-500/20 text-red-600"
                                   : rec.priority === "medium"
                                     ? "bg-orange-500/20 text-orange-600"
                                     : "bg-green-500/20 text-green-600"
-                              }`}
+                                }`}
                             >
                               {rec.priority.toUpperCase()}
                             </span>

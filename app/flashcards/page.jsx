@@ -1,12 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useSelector, useDispatch } from "react-redux"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { setCurrentDeck, addDeck } from "@/lib/slices/flashcardsSlice"
+import { setCurrentDeck, createDeck, fetchDecks } from "@/lib/slices/flashcardsSlice"
+import { recordActivity } from "@/lib/slices/activitySlice"
 import { AIFlashcardGenerator } from "@/components/ai-flashcard-generator"
 import { Zap, Plus, BookOpen } from "lucide-react"
 import Link from "next/link"
@@ -15,21 +16,23 @@ export default function FlashcardsPage() {
   const dispatch = useDispatch()
   const decks = useSelector((state) => state.flashcards.decks)
   const currentDeck = useSelector((state) => state.flashcards.currentDeck)
+  const loading = useSelector((state) => state.flashcards.loading)
   const [showNewDeck, setShowNewDeck] = useState(false)
   const [newDeckName, setNewDeckName] = useState("")
 
-  const handleCreateDeck = () => {
+  useEffect(() => {
+    dispatch(fetchDecks())
+  }, [dispatch])
+
+  const handleCreateDeck = async () => {
     if (newDeckName.trim()) {
-      const newDeck = {
-        id: Date.now().toString(),
-        name: newDeckName,
-        cards: 0,
-        dueToday: 0,
-        createdAt: new Date(),
+      try {
+        await dispatch(createDeck({ name: newDeckName })).unwrap()
+        setNewDeckName("")
+        setShowNewDeck(false)
+      } catch (error) {
+        console.error("Error creating deck:", error)
       }
-      dispatch(addDeck(newDeck))
-      setNewDeckName("")
-      setShowNewDeck(false)
     }
   }
 
@@ -51,19 +54,15 @@ export default function FlashcardsPage() {
               <CardContent className="space-y-2">
                 {decks.map((deck) => (
                   <button
-                    key={deck.id}
+                    key={deck._id}
                     onClick={() => dispatch(setCurrentDeck(deck))}
-                    className={`w-full text-left p-3 rounded-lg border transition-colors ${
-                      currentDeck?.id === deck.id
-                        ? "border-primary bg-primary/10"
-                        : "border-border hover:border-primary/50"
-                    }`}
+                    className={`w-full text-left p-3 rounded-lg border transition-colors ${currentDeck?._id === deck._id
+                      ? "border-primary bg-primary/10"
+                      : "border-border hover:border-primary/50"
+                      }`}
                   >
                     <p className="font-medium text-sm">{deck.name}</p>
-                    <p className="text-xs text-muted-foreground">{deck.cards} cards</p>
-                    {deck.dueToday > 0 && (
-                      <p className="text-xs text-primary font-semibold mt-1">{deck.dueToday} due today</p>
-                    )}
+                    <p className="text-xs text-muted-foreground">{deck.cardCount || 0} cards</p>
                   </button>
                 ))}
 
@@ -76,8 +75,8 @@ export default function FlashcardsPage() {
                       autoFocus
                     />
                     <div className="flex gap-2">
-                      <Button size="sm" onClick={handleCreateDeck} className="flex-1">
-                        Create
+                      <Button size="sm" onClick={handleCreateDeck} disabled={loading} className="flex-1">
+                        {loading ? "Creating..." : "Create"}
                       </Button>
                       <Button size="sm" variant="outline" onClick={() => setShowNewDeck(false)} className="flex-1">
                         Cancel
@@ -105,11 +104,11 @@ export default function FlashcardsPage() {
                       <div>
                         <CardTitle className="text-2xl">{currentDeck.name}</CardTitle>
                         <p className="text-sm text-muted-foreground mt-2">
-                          {currentDeck.cards} cards • {currentDeck.dueToday} due today
+                          {currentDeck.cardCount || 0} cards
                         </p>
                       </div>
-                      <Link href={`/flashcards/deck/${currentDeck.id}`}>
-                        <Button>
+                      <Link href={`/flashcards/deck/${currentDeck._id}`}>
+                        <Button onClick={() => dispatch(recordActivity({ action: "flashcard_reviewed", details: { deckId: currentDeck._id } }))}>
                           <Zap className="w-4 h-4 mr-2" />
                           Study Now
                         </Button>
@@ -125,7 +124,7 @@ export default function FlashcardsPage() {
                       <CardTitle className="text-sm font-medium text-muted-foreground">Total Cards</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-3xl font-bold">{currentDeck.cards}</p>
+                      <p className="text-3xl font-bold">{currentDeck.cardCount || 0}</p>
                     </CardContent>
                   </Card>
                   <Card>
@@ -133,7 +132,7 @@ export default function FlashcardsPage() {
                       <CardTitle className="text-sm font-medium text-muted-foreground">Due Today</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-3xl font-bold text-primary">{currentDeck.dueToday}</p>
+                      <p className="text-3xl font-bold text-primary">0</p>
                     </CardContent>
                   </Card>
                   <Card>
@@ -157,10 +156,10 @@ export default function FlashcardsPage() {
                     </CardHeader>
                     <CardContent>
                       <p className="text-sm text-muted-foreground mb-4">
-                        Review {currentDeck.dueToday} cards due today
+                        Review cards in this deck
                       </p>
-                      <Link href={`/flashcards/deck/${currentDeck.id}`}>
-                        <Button className="w-full">Start Studying</Button>
+                      <Link href={`/flashcards/deck/${currentDeck._id}`}>
+                        <Button className="w-full" onClick={() => dispatch(recordActivity({ action: "flashcard_reviewed", details: { deckId: currentDeck._id } }))}>Start Studying</Button>
                       </Link>
                     </CardContent>
                   </Card>
@@ -173,7 +172,7 @@ export default function FlashcardsPage() {
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                      {currentDeck && <AIFlashcardGenerator deckId={currentDeck.id} />}
+                      {currentDeck && <AIFlashcardGenerator deckId={currentDeck._id} />}
                     </CardContent>
                   </Card>
                 </div>

@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ChevronDown, ChevronUp } from "lucide-react"
 
 const SAMPLE_CHAPTERS = {
@@ -22,30 +22,14 @@ const SAMPLE_CHAPTERS = {
   ],
 }
 
-export function ChapterSelector({ fileId, onGenerate, isGenerating }) {
+export function ChapterSelector({ fileId, onGenerate, isGenerating, topics }) {
   const [expanded, setExpanded] = useState(false)
-  const [selectedChapters, setSelectedChapters] = useState([])
-
-  const chapters = SAMPLE_CHAPTERS[fileId] || []
-
-  const handleChapterToggle = (chapterId) => {
-    setSelectedChapters((prev) =>
-      prev.includes(chapterId) ? prev.filter((id) => id !== chapterId) : [...prev, chapterId],
-    )
-  }
-
-  const handleSelectAll = () => {
-    if (selectedChapters.length === chapters.length) {
-      setSelectedChapters([])
-    } else {
-      setSelectedChapters(chapters.map((ch) => ch.id))
-    }
-  }
+  const [selectedTopic, setSelectedTopic] = useState("")
 
   const handleGenerate = () => {
-    if (selectedChapters.length > 0) {
-      onGenerate(selectedChapters)
-      setSelectedChapters([])
+    if (selectedTopic) {
+      onGenerate([selectedTopic])
+      setSelectedTopic("")
     }
   }
 
@@ -60,52 +44,34 @@ export function ChapterSelector({ fileId, onGenerate, isGenerating }) {
           {expanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
         </div>
         <p className="text-xs md:text-sm text-muted-foreground mt-1">
-          Select chapters to generate AI-powered concise notes
+          Select a topic to generate AI-powered concise notes
         </p>
       </CardHeader>
 
       {expanded && (
         <CardContent className="space-y-4">
-          {/* Select All */}
-          <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-            <Checkbox
-              id="select-all"
-              checked={selectedChapters.length === chapters.length && chapters.length > 0}
-              onCheckedChange={handleSelectAll}
-              disabled={isGenerating}
-            />
-            <label htmlFor="select-all" className="text-sm font-medium cursor-pointer flex-1">
-              Select All Chapters
-            </label>
-            <span className="text-xs text-muted-foreground">
-              {selectedChapters.length}/{chapters.length}
-            </span>
-          </div>
-
-          {/* Chapters List */}
-          <div className="space-y-2 max-h-64 overflow-y-auto">
-            {chapters.map((chapter) => (
-              <div key={chapter.id} className="flex items-start gap-3 p-2 hover:bg-muted/50 rounded transition-colors">
-                <Checkbox
-                  id={chapter.id}
-                  checked={selectedChapters.includes(chapter.id)}
-                  onCheckedChange={() => handleChapterToggle(chapter.id)}
-                  disabled={isGenerating}
-                  className="mt-1"
-                />
-                <label htmlFor={chapter.id} className="text-sm cursor-pointer flex-1">
-                  <p className="font-medium">{chapter.title}</p>
-                  <p className="text-xs text-muted-foreground">Pages {chapter.pages}</p>
-                </label>
-              </div>
-            ))}
+          {/* Topic Selector */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Select Topic</label>
+            <Select value={selectedTopic} onValueChange={setSelectedTopic} disabled={isGenerating}>
+              <SelectTrigger>
+                <SelectValue placeholder="Choose a topic to generate notes" />
+              </SelectTrigger>
+              <SelectContent>
+                {topics.map((topic, index) => (
+                  <SelectItem key={index} value={topic}>
+                    {topic}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Action Buttons */}
           <div className="flex gap-2 pt-2">
             <Button
               onClick={handleGenerate}
-              disabled={selectedChapters.length === 0 || isGenerating}
+              disabled={!selectedTopic || isGenerating}
               className="flex-1 text-sm md:text-base"
             >
               {isGenerating ? (

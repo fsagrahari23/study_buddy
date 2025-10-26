@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useDispatch } from "react-redux"
 import { useRouter } from "next/navigation"
 import { DashboardLayout } from "@/components/dashboard-layout"
@@ -8,79 +8,46 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Plus, Search, Trash2, Clock, ArrowRight } from "lucide-react"
-import { selectNote, addEvent } from "@/lib/slices/eventsSlice"
-
-// Mock short notes data
-const SAMPLE_SHORT_NOTES = [
-  {
-    id: "short-1",
-    title: "Photosynthesis Process",
-    content:
-      "Light reactions occur in thylakoid membrane. Dark reactions (Calvin cycle) occur in stroma. Produces glucose and oxygen.",
-    category: "Biology",
-    tags: ["photosynthesis", "biology", "energy"],
-    createdAt: new Date("2024-10-20"),
-    readTime: "2 min",
-  },
-  {
-    id: "short-2",
-    title: "Newton's Laws Summary",
-    content: "1st Law: Object at rest stays at rest. 2nd Law: F=ma. 3rd Law: Action-reaction pairs.",
-    category: "Physics",
-    tags: ["newton", "physics", "mechanics"],
-    createdAt: new Date("2024-10-19"),
-    readTime: "3 min",
-  },
-  {
-    id: "short-3",
-    title: "Quadratic Formula",
-    content: "x = (-b ± √(b²-4ac)) / 2a. Used to solve quadratic equations ax²+bx+c=0.",
-    category: "Mathematics",
-    tags: ["algebra", "quadratic", "formula"],
-    createdAt: new Date("2024-10-18"),
-    readTime: "2 min",
-  },
-  {
-    id: "short-4",
-    title: "Mitochondria Function",
-    content: "Powerhouse of cell. Produces ATP through cellular respiration. Contains own DNA and ribosomes.",
-    category: "Biology",
-    tags: ["cell", "mitochondria", "energy"],
-    createdAt: new Date("2024-10-17"),
-    readTime: "2 min",
-  },
-  {
-    id: "short-5",
-    title: "Photosynthesis Equation",
-    content: "6CO₂ + 6H₂O + light energy → C₆H₁₂O₆ + 6O₂. Overall equation for photosynthesis.",
-    category: "Biology",
-    tags: ["photosynthesis", "equation", "chemistry"],
-    createdAt: new Date("2024-10-16"),
-    readTime: "2 min",
-  },
-  {
-    id: "short-6",
-    title: "Atomic Structure",
-    content: "Atoms consist of protons, neutrons, and electrons. Nucleus contains protons and neutrons.",
-    category: "Chemistry",
-    tags: ["atoms", "chemistry", "structure"],
-    createdAt: new Date("2024-10-15"),
-    readTime: "2 min",
-  },
-]
+import { Plus, Search, Trash2, Clock, ArrowRight, Loader } from "lucide-react"
+import { selectNote, logEvent } from "@/lib/slices/eventsSlice"
 
 export default function ShortNotesPage() {
   const dispatch = useDispatch()
   const router = useRouter()
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("All")
-  const [shortNotes, setShortNotes] = useState(SAMPLE_SHORT_NOTES)
+  const [shortNotes, setShortNotes] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [showNewNoteDialog, setShowNewNoteDialog] = useState(false)
   const [newNoteTitle, setNewNoteTitle] = useState("")
   const [newNoteContent, setNewNoteContent] = useState("")
+  const [creatingNote, setCreatingNote] = useState(false)
 
   const categories = ["All", "Biology", "Physics", "Mathematics", "Chemistry", "History"]
+
+  // Fetch short notes on component mount
+  useEffect(() => {
+    fetchShortNotes()
+  }, [])
+
+  const fetchShortNotes = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const response = await fetch('/api/notes/short')
+      if (!response.ok) {
+        throw new Error('Failed to fetch short notes')
+      }
+      const data = await response.json()
+      setShortNotes(data.notes || [])
+    } catch (error) {
+      console.error('Error fetching short notes:', error)
+      setError('Failed to load short notes')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const filteredNotes = shortNotes.filter((note) => {
     const matchesSearch =
@@ -90,31 +57,60 @@ export default function ShortNotesPage() {
     return matchesSearch && matchesCategory
   })
 
-  const handleAddNote = () => {
-    if (newNoteTitle.trim() && newNoteContent.trim()) {
-      const newNote = {
-        id: `short-${Date.now()}`,
-        title: newNoteTitle,
-        content: newNoteContent,
-        category: selectedCategory === "All" ? "General" : selectedCategory,
-        tags: [],
-        createdAt: new Date(),
-        readTime: "2 min",
+  const handleAddNote = async () => {
+    if (!newNoteTitle.trim() || !newNoteContent.trim()) return
+
+    try {
+      setCreatingNote(true)
+      const response = await fetch('/api/notes/short', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: newNoteTitle,
+          content: newNoteContent,
+          category: selectedCategory === "All" ? "General" : selectedCategory,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to create note')
       }
-      setShortNotes([newNote, ...shortNotes])
+
+      const data = await response.json()
+      setShortNotes([data.note, ...shortNotes])
       setNewNoteTitle("")
       setNewNoteContent("")
       setShowNewNoteDialog(false)
+    } catch (error) {
+      console.error('Error creating note:', error)
+      setError('Failed to create note')
+    } finally {
+      setCreatingNote(false)
     }
   }
 
-  const handleDeleteNote = (id) => {
-    setShortNotes(shortNotes.filter((note) => note.id !== id))
+  const handleDeleteNote = async (id) => {
+    try {
+      const response = await fetch(`/api/notes/short/${id}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to delete note')
+      }
+
+      setShortNotes(shortNotes.filter((note) => note._id !== id))
+    } catch (error) {
+      console.error('Error deleting note:', error)
+      setError('Failed to delete note')
+    }
   }
 
   const handleNoteClick = (note) => {
     dispatch(selectNote(note))
-    dispatch(addEvent({ type: "note_viewed", noteId: note.id, noteTitle: note.title }))
+    dispatch(logEvent({ type: "note_viewed", noteId: note.id, noteTitle: note.title }))
     router.push(`/notes/short/${note.id}`)
   }
 
@@ -157,8 +153,15 @@ export default function ShortNotesPage() {
                     className="w-full h-32 p-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary resize-none text-sm"
                   />
                 </div>
-                <Button onClick={handleAddNote} className="w-full">
-                  Create Note
+                <Button onClick={handleAddNote} className="w-full" disabled={creatingNote}>
+                  {creatingNote ? (
+                    <>
+                      <Loader className="w-4 h-4 mr-2 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    'Create Note'
+                  )}
                 </Button>
               </div>
             </DialogContent>
@@ -183,87 +186,105 @@ export default function ShortNotesPage() {
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-3 md:px-4 py-2 rounded-full whitespace-nowrap text-sm transition-colors ${
-                  selectedCategory === cat
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-foreground hover:bg-muted/80"
-                }`}
+                className={`px-3 md:px-4 py-2 rounded-full whitespace-nowrap text-sm transition-colors ${selectedCategory === cat
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-foreground hover:bg-muted/80"
+                  }`}
               >
                 {cat}
               </button>
             ))}
           </div>
         </div>
+        {loading && (
+          <div className="flex justify-center items-center py-12">
+            <Loader className="w-8 h-8 animate-spin text-primary" />
+            <span className="ml-2 text-muted-foreground">Loading short notes...</span>
+          </div>
+        )}
+
+        {/* Error State */}
+        {error && (
+          <div className="text-center py-8">
+            <p className="text-destructive text-sm md:text-base">{error}</p>
+            <Button onClick={fetchShortNotes} className="mt-4">
+              Try Again
+            </Button>
+          </div>
+        )}
 
         {/* Notes Grid - Fully Responsive */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
-          {filteredNotes.length > 0 ? (
-            filteredNotes.map((note) => (
-              <Card
-                key={note.id}
-                className="hover:shadow-lg transition-all cursor-pointer group overflow-hidden hover:border-primary/50"
-                onClick={() => handleNoteClick(note)}
-              >
-                <CardHeader className="pb-2 md:pb-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <CardTitle className="text-sm md:text-base line-clamp-2 group-hover:text-primary transition-colors">
-                        {note.title}
-                      </CardTitle>
-                      <p className="text-xs text-muted-foreground mt-1">{note.category}</p>
+        {!loading && !error && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
+            {filteredNotes.length > 0 ? (
+              filteredNotes.map((note) => (
+                <Card
+                  key={note._id}
+                  className="hover:shadow-lg transition-all cursor-pointer group overflow-hidden hover:border-primary/50"
+                  onClick={() => handleNoteClick(note)}
+                >
+                  <CardHeader className="pb-2 md:pb-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <CardTitle className="text-sm md:text-base line-clamp-2 group-hover:text-primary transition-colors">
+                          {note.title}
+                        </CardTitle>
+                        <p className="text-xs text-muted-foreground mt-1">{note.category}</p>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDeleteNote(note._id)
+                        }}
+                        className="p-1 rounded hover:bg-destructive/10 text-destructive opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleDeleteNote(note.id)
-                      }}
-                      className="p-1 rounded hover:bg-destructive/10 text-destructive opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-2 md:space-y-3">
-                  <p className="text-xs md:text-sm text-foreground line-clamp-3 leading-relaxed">{note.content}</p>
+                  </CardHeader>
+                  <CardContent className="space-y-2 md:space-y-3">
+                    <p className="text-xs md:text-sm text-foreground line-clamp-3 leading-relaxed">{note.content}</p>
 
-                  {/* Tags */}
-                  {note.tags.length > 0 && (
-                    <div className="flex gap-1 flex-wrap">
-                      {note.tags.slice(0, 2).map((tag) => (
-                        <span key={tag} className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">
-                          {tag}
-                        </span>
-                      ))}
-                      {note.tags.length > 2 && (
-                        <span className="text-xs text-muted-foreground">+{note.tags.length - 2}</span>
-                      )}
-                    </div>
-                  )}
+                    {/* Tags */}
+                    {note.tags.length > 0 && (
+                      <div className="flex gap-1 flex-wrap">
+                        {note.tags.slice(0, 2).map((tag) => (
+                          <span key={tag} className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">
+                            {tag}
+                          </span>
+                        ))}
+                        {note.tags.length > 2 && (
+                          <span className="text-xs text-muted-foreground">+{note.tags.length - 2}</span>
+                        )}
+                      </div>
+                    )}
 
-                  {/* Footer */}
-                  <div className="flex items-center justify-between pt-2 border-t border-border">
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Clock className="w-3 h-3" />
-                      {note.readTime}
+                    {/* Footer */}
+                    <div className="flex items-center justify-between pt-2 border-t border-border">
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Clock className="w-3 h-3" />
+                        {note.readTime}
+                      </div>
+                      <div className="flex items-center gap-1 text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span className="text-xs font-medium">View</span>
+                        <ArrowRight className="w-3 h-3" />
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1 text-primary opacity-0 group-hover:opacity-100 transition-opacity">
-                      <span className="text-xs font-medium">View</span>
-                      <ArrowRight className="w-3 h-3" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
-          ) : (
-            <div className="col-span-full text-center py-8 md:py-12">
-              <p className="text-muted-foreground text-sm md:text-base">No notes found</p>
-              <Button onClick={() => setShowNewNoteDialog(true)} className="mt-4">
-                Create your first note
-              </Button>
-            </div>
-          )}
-        </div>
+                  </CardContent>
+                </Card>
+              ))
+            ) : (
+              <div className="col-span-full text-center py-8 md:py-12">
+                <p className="text-muted-foreground text-sm md:text-base">No notes found</p>
+                <Button onClick={() => setShowNewNoteDialog(true)} className="mt-4">
+                  Create your first note
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </DashboardLayout>
+
   )
 }

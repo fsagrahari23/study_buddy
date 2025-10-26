@@ -33,7 +33,7 @@ export function FlashcardCard({ card, onFeedback, isFlipped: initialFlipped = fa
           >
             <CardContent className="text-center">
               <p className="text-sm text-muted-foreground mb-4">Question</p>
-              <p className="text-2xl font-bold">{card.question}</p>
+              <p className="text-2xl font-bold">{card.front}</p>
               <p className="text-xs text-muted-foreground mt-8">Click to reveal answer</p>
             </CardContent>
           </Card>
@@ -48,7 +48,7 @@ export function FlashcardCard({ card, onFeedback, isFlipped: initialFlipped = fa
           >
             <CardContent className="text-center">
               <p className="text-sm text-muted-foreground mb-4">Answer</p>
-              <p className="text-2xl font-bold">{card.answer}</p>
+              <p className="text-2xl font-bold">{card.back}</p>
               <p className="text-xs text-muted-foreground mt-8">Click to see question</p>
             </CardContent>
           </Card>
@@ -83,16 +83,18 @@ export function FlashcardCard({ card, onFeedback, isFlipped: initialFlipped = fa
       {/* Card Stats */}
       <div className="w-full max-w-md grid grid-cols-3 gap-4 text-center text-sm">
         <div className="p-3 rounded-lg bg-muted">
-          <p className="text-muted-foreground">Easiness</p>
-          <p className="font-bold">{card.easiness.toFixed(1)}</p>
+          <p className="text-muted-foreground">Difficulty</p>
+          <p className="font-bold">{card.difficulty || "medium"}</p>
         </div>
         <div className="p-3 rounded-lg bg-muted">
-          <p className="text-muted-foreground">Interval</p>
-          <p className="font-bold">{card.interval} days</p>
+          <p className="text-muted-foreground">Reviews</p>
+          <p className="font-bold">{card.reviewCount || 0}</p>
         </div>
         <div className="p-3 rounded-lg bg-muted">
-          <p className="text-muted-foreground">Reps</p>
-          <p className="font-bold">{card.repetitions}</p>
+          <p className="text-muted-foreground">Next Review</p>
+          <p className="font-bold">
+            {card.nextReviewDate ? new Date(card.nextReviewDate).toLocaleDateString() : "Today"}
+          </p>
         </div>
       </div>
     </div>

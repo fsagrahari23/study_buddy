@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ArrowLeft, Sparkles, Copy, Share2, Loader, Send } from "lucide-react"
-import { addEvent } from "@/lib/slices/eventsSlice"
+import { logEvent } from "@/lib/slices/eventsSlice"
 
 const AI_TOOLS = [
   {
@@ -60,60 +60,63 @@ export default function NoteDetailPage() {
   const handleToolClick = async (toolId) => {
     setSelectedTool(toolId)
     setLoading(true)
+    setAiResponse("")
 
-    // Simulate AI response
-    const responses = {
-      explain: `This concept is fundamental to understanding ${note.title}. Let me break it down:
+    try {
+      let response
+      let apiEndpoint
 
-1. **Core Principle**: ${note.content.substring(0, 100)}...
+      switch (toolId) {
+        case "explain":
+          apiEndpoint = "/api/notes/explain"
+          break
+        case "summary":
+          apiEndpoint = "/api/notes/summary"
+          break
+        case "questions":
+          apiEndpoint = "/api/notes/questions"
+          break
+        case "flashcards":
+          // For flashcards, we need a deckId - for now, we'll use a default or prompt user
+          // This might need to be updated to get deckId from user selection
+          apiEndpoint = "/api/notes/flashcards"
+          break
+        default:
+          throw new Error("Unknown tool")
+      }
 
-2. **Key Components**:
-   - Component A: Explanation
-   - Component B: Explanation
-   - Component C: Explanation
+      const res = await fetch(apiEndpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          noteId: note.id,
+          ...(toolId === "flashcards" && { deckId: "default-deck-id" }), // TODO: Get actual deckId
+        }),
+      })
 
-3. **Real-World Application**: This is used in...
+      if (!res.ok) {
+        throw new Error("Failed to get AI response")
+      }
 
-4. **Common Misconceptions**: Students often think...
+      const data = await res.json()
 
-5. **Practice Tip**: Try to apply this by...`,
-      summary: `**Summary of ${note.title}**
+      switch (toolId) {
+        case "explain":
+          response = data.explanation
+          break
+        case "summary":
+          response = data.summary
+          break
+        case "questions":
+          response = data.questions
+          break
+        case "flashcards":
+          response = data.message
+          break
+      }
 
-${note.content}
-
-**Key Takeaways**:
-• Point 1
-• Point 2
-• Point 3
-
-**Why It Matters**: This concept is important because...`,
-      questions: `**Practice Questions for ${note.title}**
-
-1. **Easy**: What is the main concept of ${note.title}?
-2. **Medium**: How does this concept apply to real-world scenarios?
-3. **Hard**: Compare this with related concepts.
-4. **Challenge**: Create your own example using this concept.
-
-Try answering these questions to test your understanding!`,
-      flashcards: `**Flashcards Created for ${note.title}**
-
-Card 1:
-Q: What is ${note.title}?
-A: ${note.content.substring(0, 80)}...
-
-Card 2:
-Q: Why is this important?
-A: It helps understand...
-
-Card 3:
-Q: How is it applied?
-A: In practical scenarios...
-
-5 flashcards have been created and added to your deck!`,
-    }
-
-    setTimeout(() => {
-      const response = responses[toolId] || responses.explain
       setAiResponse(response)
       setMessages([
         ...messages,
@@ -126,9 +129,24 @@ A: In practical scenarios...
           text: response,
         },
       ])
+    } catch (error) {
+      console.error("Error calling AI API:", error)
+      setAiResponse("Sorry, there was an error processing your request. Please try again.")
+      setMessages([
+        ...messages,
+        {
+          role: "user",
+          text: `${AI_TOOLS.find((t) => t.id === toolId)?.name} for this note`,
+        },
+        {
+          role: "assistant",
+          text: "Sorry, there was an error processing your request. Please try again.",
+        },
+      ])
+    } finally {
       setLoading(false)
-      dispatch(addEvent({ type: "ai_tool_used", toolId, noteId: note.id }))
-    }, 1500)
+      dispatch(logEvent({ type: "ai_tool_used", toolId, noteId: note.id }))
+    }
   }
 
   const handleSendMessage = async (e) => {
@@ -169,7 +187,7 @@ Feel free to ask follow-up questions!`
       ])
       setLoading(false)
       setUserMessage("")
-      dispatch(addEvent({ type: "ai_question_asked", noteId: note.id, question: userMessage }))
+      dispatch(logEvent({ type: "ai_question_asked", noteId: note.id, question: userMessage }))
     }, 1500)
   }
 
@@ -235,11 +253,10 @@ Feel free to ask follow-up questions!`
                     messages.map((msg, idx) => (
                       <div key={idx} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                         <div
-                          className={`max-w-xs md:max-w-md px-3 md:px-4 py-2 rounded-lg text-sm ${
-                            msg.role === "user"
-                              ? "bg-primary text-primary-foreground rounded-br-none"
-                              : "bg-muted text-foreground rounded-bl-none"
-                          }`}
+                          className={`max-w-xs md:max-w-md px-3 md:px-4 py-2 rounded-lg text-sm ${msg.role === "user"
+                            ? "bg-primary text-primary-foreground rounded-br-none"
+                            : "bg-muted text-foreground rounded-bl-none"
+                            }`}
                         >
                           <p className="break-words">{msg.text}</p>
                         </div>
@@ -285,11 +302,10 @@ Feel free to ask follow-up questions!`
                     key={tool.id}
                     onClick={() => handleToolClick(tool.id)}
                     disabled={loading}
-                    className={`w-full p-3 rounded-lg border transition-all text-left text-sm ${
-                      selectedTool === tool.id
-                        ? "border-primary bg-primary/10"
-                        : "border-border hover:border-primary/50 hover:bg-muted/50"
-                    } disabled:opacity-50`}
+                    className={`w-full p-3 rounded-lg border transition-all text-left text-sm ${selectedTool === tool.id
+                      ? "border-primary bg-primary/10"
+                      : "border-border hover:border-primary/50 hover:bg-muted/50"
+                      } disabled:opacity-50`}
                   >
                     <div className="flex items-start gap-2">
                       <span className="text-lg">{tool.icon}</span>

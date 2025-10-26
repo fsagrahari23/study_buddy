@@ -1,13 +1,14 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useDispatch, useSelector } from "react-redux"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { addMessage } from "@/lib/slices/chatsSlice"
-import { Send, Loader, Sparkles, BookOpen, Lightbulb, HelpCircle, Brain, Zap, MessageSquare, Plus } from "lucide-react"
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { addMessageToFileChat } from "@/lib/slices/chatsSlice"
+import { Send, Loader, Sparkles, BookOpen, Lightbulb, HelpCircle, Brain, Zap, MessageSquare, Plus, Trash2, Wrench } from "lucide-react"
 
 const CHAT_TOOLS = [
   {
@@ -63,119 +64,155 @@ const CHAT_TOOLS = [
 export default function ChatPage() {
   const dispatch = useDispatch()
   const chats = useSelector((state) => state.chats.chats)
-  const [selectedChatId, setSelectedChatId] = useState(chats[0]?.id || "1")
+  const [selectedChatId, setSelectedChatId] = useState(null)
   const [message, setMessage] = useState("")
   const [loading, setLoading] = useState(false)
   const [selectedTool, setSelectedTool] = useState(null)
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const [chatHistory, setChatHistory] = useState([])
+  const [currentChat, setCurrentChat] = useState(null)
 
-  const currentChat = chats.find((c) => c.id === selectedChatId)
+  useEffect(() => {
+    fetchChats()
+  }, [])
+
+  const fetchChats = async () => {
+    try {
+      const response = await fetch("/api/chat")
+      if (response.ok) {
+        const data = await response.json()
+        setChatHistory(data.chats || [])
+        if (data.chats && data.chats.length > 0 && !selectedChatId) {
+          setSelectedChatId(data.chats[0]._id)
+          loadChat(data.chats[0]._id)
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching chats:", error)
+    }
+  }
+
+  const loadChat = async (chatId) => {
+    try {
+      const response = await fetch(`/api/chat?chatId=${chatId}`)
+      if (response.ok) {
+        const data = await response.json()
+        setCurrentChat(data.chat)
+        setSelectedChatId(chatId)
+      }
+    } catch (error) {
+      console.error("Error loading chat:", error)
+    }
+  }
+
+  const createNewChat = () => {
+    const newChatId = `chat_${Date.now()}`
+    setSelectedChatId(newChatId)
+    setCurrentChat({
+      _id: newChatId,
+      title: "New Chat",
+      messages: [],
+    })
+    setChatHistory(prev => [{
+      _id: newChatId,
+      title: "New Chat",
+      messages: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }, ...prev])
+  }
+
+  const deleteChat = async (chatId) => {
+    try {
+      const response = await fetch(`/api/chat?chatId=${chatId}`, {
+        method: "DELETE",
+      })
+      if (response.ok) {
+        setChatHistory(prev => prev.filter(chat => chat._id !== chatId))
+        if (selectedChatId === chatId) {
+          const remainingChats = chatHistory.filter(chat => chat._id !== chatId)
+          if (remainingChats.length > 0) {
+            setSelectedChatId(remainingChats[0]._id)
+            loadChat(remainingChats[0]._id)
+          } else {
+            setSelectedChatId(null)
+            setCurrentChat(null)
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error deleting chat:", error)
+    }
+  }
 
   const handleSendMessage = async (e, toolId = null) => {
     e.preventDefault()
-    if (!message.trim()) return
+    if (!message.trim() || !selectedChatId) return
 
     const tool = CHAT_TOOLS.find((t) => t.id === toolId)
     const fullMessage = tool ? `${tool.prompt} ${message}` : message
 
     setLoading(true)
 
-    // Add user message
-    dispatch(
-      addMessage({
-        chatId: selectedChatId,
-        message: { role: "user", text: fullMessage, tool: toolId },
-      }),
-    )
+    // Add user message to local state
+    const userMessage = {
+      role: "user",
+      content: fullMessage,
+      tool: toolId,
+      timestamp: new Date(),
+    }
 
-    // Simulate AI response
-    setTimeout(() => {
-      const responses = {
-        explain: `This is an excellent question! Let me break this down for you:
+    setCurrentChat(prev => ({
+      ...prev,
+      messages: [...(prev?.messages || []), userMessage],
+    }))
 
-1. **Core Concept**: The fundamental principle here is...
-2. **How It Works**: The mechanism involves...
-3. **Real-World Example**: Consider this scenario...
-4. **Key Takeaways**: Remember these important points...
-
-This concept is crucial for understanding more advanced topics in this field.`,
-        solve: `Let me solve this step by step:
-
-**Step 1**: Identify what we know
-- Given information: ...
-- What we need to find: ...
-
-**Step 2**: Choose the right approach
-- Method: ...
-- Formula: ...
-
-**Step 3**: Apply the solution
-- Calculation: ...
-- Result: ...
-
-**Step 4**: Verify the answer
-- Check: ...
-- Conclusion: ...
-
-The final answer is: **[Result]**`,
-        summarize: `Here's a concise summary:
-
-**Main Points**:
-• Point 1: ...
-• Point 2: ...
-• Point 3: ...
-
-**Key Takeaway**: The most important thing to remember is...
-
-**Why It Matters**: This concept is important because...`,
-        tips: `Here are effective study strategies:
-
-1. **Active Recall**: Test yourself regularly without looking at notes
-2. **Spaced Repetition**: Review material at increasing intervals
-3. **Teach Others**: Explain concepts to someone else
-4. **Practice Problems**: Work through examples and exercises
-5. **Create Visuals**: Make mind maps and diagrams
-6. **Group Study**: Collaborate with peers for deeper understanding`,
-        compare: `Here's a detailed comparison:
-
-**Similarities**:
-- Both share...
-- Common aspects include...
-
-**Differences**:
-- Concept A emphasizes...
-- Concept B focuses on...
-
-**When to Use Each**:
-- Use A when...
-- Use B when...
-
-**Relationship**: These concepts are related because...`,
-        practice: `Here are practice questions:
-
-1. **Easy**: [Question about basic understanding]
-2. **Medium**: [Question requiring application]
-3. **Hard**: [Question requiring analysis]
-4. **Challenge**: [Question requiring synthesis]
-
-Try solving these and check your understanding!`,
-      }
-
-      const response = responses[toolId] || responses.explain
-
-      dispatch(
-        addMessage({
+    try {
+      // Send to API
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: fullMessage,
           chatId: selectedChatId,
-          message: {
-            role: "assistant",
-            text: response,
-            tool: toolId,
-          },
+          toolId,
         }),
-      )
+      })
 
-      setLoading(false)
-    }, 1500)
+      if (response.ok) {
+        const data = await response.json()
 
+        // Add AI response to local state
+        const aiMessage = {
+          role: "assistant",
+          content: data.response,
+          tool: toolId,
+          timestamp: new Date(),
+        }
+
+        setCurrentChat(prev => ({
+          ...prev,
+          messages: [...(prev?.messages || []), aiMessage],
+        }))
+
+        // Update chat history
+        setChatHistory(prev =>
+          prev.map(chat =>
+            chat._id === selectedChatId
+              ? { ...chat, messages: [...chat.messages, userMessage, aiMessage] }
+              : chat
+          )
+        )
+      } else {
+        console.error("Failed to get AI response")
+      }
+    } catch (error) {
+      console.error("Error sending message:", error)
+    }
+
+    setLoading(false)
     setMessage("")
     setSelectedTool(null)
   }
@@ -189,7 +226,7 @@ Try solving these and check your understanding!`,
             <h1 className="text-3xl font-bold">Study Assistant</h1>
             <p className="text-muted-foreground mt-1">Get help with any study topic</p>
           </div>
-          <Button className="gap-2">
+          <Button onClick={createNewChat} className="gap-2">
             <Plus className="w-4 h-4" />
             New Chat
           </Button>
@@ -204,19 +241,27 @@ Try solving these and check your understanding!`,
                 <CardTitle className="text-base">Chats</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2 max-h-96 overflow-y-auto">
-                {chats.map((chat) => (
-                  <button
-                    key={chat.id}
-                    onClick={() => setSelectedChatId(chat.id)}
-                    className={`w-full text-left px-3 py-2 rounded-lg transition-colors text-sm ${
-                      selectedChatId === chat.id
+                {chatHistory.map((chat) => (
+                  <div key={chat._id} className="flex items-center gap-2">
+                    <button
+                      onClick={() => loadChat(chat._id)}
+                      className={`flex-1 text-left px-3 py-2 rounded-lg transition-colors text-sm ${selectedChatId === chat._id
                         ? "bg-primary text-primary-foreground"
                         : "hover:bg-muted text-foreground"
-                    }`}
-                  >
-                    <p className="font-medium truncate">{chat.title}</p>
-                    <p className="text-xs opacity-70">{chat.messages.length} messages</p>
-                  </button>
+                        }`}
+                    >
+                      <p className="font-medium truncate">{chat.title}</p>
+                      <p className="text-xs opacity-70">{chat.messages?.length || 0} messages</p>
+                    </button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => deleteChat(chat._id)}
+                      className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
                 ))}
               </CardContent>
             </Card>
@@ -236,13 +281,12 @@ Try solving these and check your understanding!`,
                 {currentChat?.messages?.map((msg, idx) => (
                   <div key={idx} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                     <div
-                      className={`max-w-xs md:max-w-md px-3 md:px-4 py-2 md:py-3 rounded-lg text-sm ${
-                        msg.role === "user"
-                          ? "bg-primary text-primary-foreground rounded-br-none"
-                          : "bg-muted text-foreground rounded-bl-none"
-                      }`}
+                      className={`max-w-xs md:max-w-md px-3 md:px-4 py-2 md:py-3 rounded-lg text-sm ${msg.role === "user"
+                        ? "bg-primary text-primary-foreground rounded-br-none"
+                        : "bg-muted text-foreground rounded-bl-none"
+                        }`}
                     >
-                      <p className="whitespace-pre-wrap leading-relaxed break-words">{msg.text}</p>
+                      <p className="whitespace-pre-wrap leading-relaxed break-words">{msg.content}</p>
                       {msg.tool && (
                         <div className="mt-2 pt-2 border-t border-current/20 text-xs opacity-70">
                           Tool: {CHAT_TOOLS.find((t) => t.id === msg.tool)?.name}
@@ -262,27 +306,39 @@ Try solving these and check your understanding!`,
               </CardContent>
             </Card>
 
-            {/* Tools Grid - Responsive */}
-            <div>
-              <p className="text-sm font-medium mb-3">Quick Tools</p>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-3">
-                {CHAT_TOOLS.map((tool) => {
-                  const Icon = tool.icon
-                  return (
-                    <button
-                      key={tool.id}
-                      onClick={() => setSelectedTool(tool.id)}
-                      className={`p-2 md:p-3 rounded-lg border transition-all hover:shadow-md text-sm ${tool.color} ${
-                        selectedTool === tool.id ? "ring-2 ring-primary" : ""
-                      }`}
-                    >
-                      <Icon className="w-4 md:w-5 h-4 md:h-5 mb-1 md:mb-2" />
-                      <p className="text-xs font-medium text-left line-clamp-2">{tool.name}</p>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
+            {/* Tool Panel */}
+            <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+              <SheetTrigger asChild>
+                <Button variant="outline" className="w-full gap-2">
+                  <Wrench className="w-4 h-4" />
+                  Quick Tools
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="bottom" className="h-auto max-h-[80vh]">
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Select a Tool</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {CHAT_TOOLS.map((tool) => {
+                      const Icon = tool.icon
+                      return (
+                        <button
+                          key={tool.id}
+                          onClick={() => {
+                            setSelectedTool(tool.id)
+                            setSheetOpen(false)
+                          }}
+                          className={`p-3 rounded-lg border transition-all hover:shadow-md text-sm ${tool.color} ${selectedTool === tool.id ? "ring-2 ring-primary" : ""
+                            }`}
+                        >
+                          <Icon className="w-5 h-5 mb-2" />
+                          <p className="text-xs font-medium text-left line-clamp-2">{tool.name}</p>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              </SheetContent>
+            </Sheet>
 
             {/* Input Area - Responsive */}
             <form onSubmit={(e) => handleSendMessage(e, selectedTool)} className="space-y-2 md:space-y-3">

@@ -1,12 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useSelector, useDispatch } from "react-redux"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { addQuiz, setGeneratingQuiz, setGenerationError } from "@/lib/slices/quizzesSlice"
+import { setFiles } from "@/lib/slices/filesSlice"
 import { AlertCircle, Loader2, CheckCircle } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
@@ -27,65 +28,26 @@ export function QuizGenerator({ onClose }) {
 
   const [success, setSuccess] = useState(false)
 
-  // Sample chapters for each file
-  const chaptersByFile = {
-    1: [
-      { id: "ch1", name: "Chapter 1: Introduction", pages: "1-44" },
-      { id: "ch2", name: "Chapter 2: Algebra Basics", pages: "45-78" },
-      { id: "ch3", name: "Chapter 3: Advanced Algebra", pages: "79-120" },
-      { id: "ch4", name: "Chapter 4: Calculus Fundamentals", pages: "121-180" },
-    ],
-    2: [
-      { id: "ch1", name: "Chapter 1: Introduction", pages: "1-30" },
-      { id: "ch2", name: "Chapter 2: Motion and Forces", pages: "31-70" },
-      { id: "ch3", name: "Chapter 3: Energy", pages: "71-110" },
-    ],
-  }
-
-  const selectedChapters = chaptersByFile[formData.fileId] || []
-  const selectedFile = files.find((f) => f.id === formData.fileId)
-  const selectedChapter = selectedChapters.find((ch) => ch.id === formData.chapter)
-
-  // Mock AI question generation
-  const generateQuestionsFromChapter = () => {
-    const difficultyLevels = {
-      beginner: ["easy", "easy", "easy"],
-      intermediate: ["easy", "intermediate", "intermediate", "hard"],
-      advanced: ["intermediate", "hard", "hard"],
+  // Fetch files on component mount
+  useEffect(() => {
+    const fetchFiles = async () => {
+      try {
+        const response = await fetch('/api/files')
+        if (response.ok) {
+          const data = await response.json()
+          dispatch(setFiles(data.files))
+        } else {
+          console.error('Failed to fetch files')
+        }
+      } catch (error) {
+        console.error('Error fetching files:', error)
+      }
     }
 
-    const difficulties = difficultyLevels[formData.difficulty] || []
-    const numQuestions = Number.parseInt(formData.numQuestions)
+    fetchFiles()
+  }, [dispatch])
 
-    const sampleQuestions = [
-      {
-        id: "q1",
-        question: "What is the fundamental concept discussed in this chapter?",
-        options: ["Option A", "Option B", "Option C", "Option D"],
-        correct: 0,
-        explanation: "This is the correct answer based on the chapter content.",
-        difficulty: "easy",
-      },
-      {
-        id: "q2",
-        question: "How does this concept relate to real-world applications?",
-        options: ["Application 1", "Application 2", "Application 3", "Application 4"],
-        correct: 1,
-        explanation: "The concept is primarily used in this application.",
-        difficulty: "intermediate",
-      },
-      {
-        id: "q3",
-        question: "What is the advanced interpretation of this principle?",
-        options: ["Interpretation A", "Interpretation B", "Interpretation C", "Interpretation D"],
-        correct: 2,
-        explanation: "Advanced understanding requires this interpretation.",
-        difficulty: "hard",
-      },
-    ]
-
-    return sampleQuestions.slice(0, numQuestions)
-  }
+  const selectedFile = files.find((f) => f._id === formData.fileId || f.id === formData.fileId)
 
   const handleGenerateQuiz = async () => {
     if (!formData.title || !formData.fileId || !formData.chapter) {
@@ -96,25 +58,26 @@ export function QuizGenerator({ onClose }) {
     dispatch(setGeneratingQuiz(true))
     dispatch(setGenerationError(null))
 
-    // Simulate AI generation delay
-    setTimeout(() => {
-      const questions = generateQuestionsFromChapter()
+    try {
+      const response = await fetch("/api/quizzes", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fileId: formData.fileId,
+          chapter: formData.chapter,
+          difficulty: formData.difficulty,
+          numQuestions: formData.numQuestions,
+        }),
+      })
 
-      const newQuiz = {
-        id: Date.now().toString(),
-        title: formData.title,
-        description: formData.description,
-        fileId: formData.fileId,
-        fileName: selectedFile.name,
-        chapter: selectedChapter.name,
-        chapterPages: selectedChapter.pages,
-        difficulty: formData.difficulty,
-        category: selectedFile.name.split(".")[0],
-        totalQuestions: questions.length,
-        totalScore: questions.length * 10,
-        timeLimit: Math.ceil(questions.length * 2.5),
-        questions: questions,
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to generate quiz")
       }
+
+      const newQuiz = await response.json()
 
       dispatch(addQuiz(newQuiz))
       dispatch(setGeneratingQuiz(false))
@@ -123,7 +86,11 @@ export function QuizGenerator({ onClose }) {
       setTimeout(() => {
         onClose()
       }, 2000)
-    }, 2000)
+    } catch (error) {
+      console.error("Error generating quiz:", error)
+      dispatch(setGenerationError(error.message))
+      dispatch(setGeneratingQuiz(false))
+    }
   }
 
   if (success) {
@@ -141,7 +108,7 @@ export function QuizGenerator({ onClose }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Generate Quiz from Chapter</CardTitle>
+        <CardTitle>Generate Quiz from Topic</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {generationError && (
@@ -176,13 +143,14 @@ export function QuizGenerator({ onClose }) {
           <Select
             value={formData.fileId}
             onValueChange={(value) => setFormData({ ...formData, fileId: value, chapter: "" })}
+            disabled={generatingQuiz}
           >
-            <SelectTrigger disabled={generatingQuiz}>
+            <SelectTrigger>
               <SelectValue placeholder="Choose a file" />
             </SelectTrigger>
             <SelectContent>
               {files.map((file) => (
-                <SelectItem key={file.id} value={file.id}>
+                <SelectItem key={file._id || file.id} value={file._id || file.id}>
                   {file.name}
                 </SelectItem>
               ))}
@@ -192,19 +160,24 @@ export function QuizGenerator({ onClose }) {
 
         {formData.fileId && (
           <div>
-            <label className="block text-sm font-medium mb-2">Select Chapter *</label>
+            <label className="block text-sm font-medium mb-2">Select Topic *</label>
             <Select value={formData.chapter} onValueChange={(value) => setFormData({ ...formData, chapter: value })}>
               <SelectTrigger disabled={generatingQuiz}>
-                <SelectValue placeholder="Choose a chapter" />
+                <SelectValue placeholder="Choose a topic" />
               </SelectTrigger>
               <SelectContent>
-                {selectedChapters.map((chapter) => (
-                  <SelectItem key={chapter.id} value={chapter.id}>
-                    {chapter.name} (Pages {chapter.pages})
+                {selectedFile?.topics?.map((topic, index) => (
+                  <SelectItem key={index} value={topic}>
+                    {topic}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {(!selectedFile?.topics || selectedFile.topics.length === 0) && (
+              <p className="text-xs text-muted-foreground mt-1">
+                No topics available for this file. Please upload and process the file first.
+              </p>
+            )}
           </div>
         )}
 
@@ -214,14 +187,15 @@ export function QuizGenerator({ onClose }) {
             <Select
               value={formData.difficulty}
               onValueChange={(value) => setFormData({ ...formData, difficulty: value })}
+              disabled={generatingQuiz}
             >
-              <SelectTrigger disabled={generatingQuiz}>
+              <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="beginner">Beginner</SelectItem>
-                <SelectItem value="intermediate">Intermediate</SelectItem>
-                <SelectItem value="advanced">Advanced</SelectItem>
+                <SelectItem value="easy">Easy</SelectItem>
+                <SelectItem value="medium">Medium</SelectItem>
+                <SelectItem value="hard">Hard</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -231,8 +205,9 @@ export function QuizGenerator({ onClose }) {
             <Select
               value={formData.numQuestions}
               onValueChange={(value) => setFormData({ ...formData, numQuestions: value })}
+              disabled={generatingQuiz}
             >
-              <SelectTrigger disabled={generatingQuiz}>
+              <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

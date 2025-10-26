@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useSelector, useDispatch } from "react-redux"
 import { useParams, useRouter } from "next/navigation"
 import { DashboardLayout } from "@/components/dashboard-layout"
@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { updateNote } from "@/lib/slices/notesSlice"
+import { recordActivity } from "@/lib/slices/activitySlice"
 import { AINoteAssistant } from "@/components/ai-note-assistant"
 import { ChevronLeft, Save, Download } from "lucide-react"
 import Link from "next/link"
@@ -23,6 +24,12 @@ export default function NoteEditorPage() {
   const [tags, setTags] = useState(note?.tags?.join(", ") || "")
   const [saved, setSaved] = useState(true)
 
+  useEffect(() => {
+    if (noteId) {
+      dispatch(recordActivity({ action: "note_viewed", details: { noteId } }))
+    }
+  }, [dispatch, noteId])
+
   const handleSave = () => {
     dispatch(
       updateNote({
@@ -33,6 +40,7 @@ export default function NoteEditorPage() {
       }),
     )
     setSaved(true)
+    dispatch(recordActivity({ action: "note_edited", details: { noteId } }))
   }
 
   const handleChange = (field, value) => {

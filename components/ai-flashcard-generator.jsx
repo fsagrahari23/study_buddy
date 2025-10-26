@@ -7,44 +7,12 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { addGeneratedFlashcards, setLoading } from "@/lib/slices/aiSlice"
-import { addCard } from "@/lib/slices/flashcardsSlice"
+import { generateFlashcards } from "@/lib/slices/flashcardsSlice"
 import { Sparkles, Loader2 } from "lucide-react"
-
-// Mock AI flashcard generation
-const generateFlashcardsFromText = async (text, topic) => {
-  // Simulate API delay
-  await new Promise((resolve) => setTimeout(resolve, 1500))
-
-  const mockFlashcards = [
-    {
-      id: `fc-${Date.now()}-1`,
-      question: `What is the main concept of ${topic}?`,
-      answer: `${topic} is a fundamental concept that involves understanding key principles and their applications.`,
-    },
-    {
-      id: `fc-${Date.now()}-2`,
-      question: `How does ${topic} relate to real-world applications?`,
-      answer: `${topic} has practical applications in various fields including education, technology, and professional development.`,
-    },
-    {
-      id: `fc-${Date.now()}-3`,
-      question: `What are the key benefits of studying ${topic}?`,
-      answer: `Key benefits include improved understanding, better retention, and enhanced problem-solving skills.`,
-    },
-    {
-      id: `fc-${Date.now()}-4`,
-      question: `Explain the importance of ${topic} in modern context.`,
-      answer: `In modern context, ${topic} is crucial for adapting to rapid changes and developing critical thinking abilities.`,
-    },
-  ]
-
-  return mockFlashcards
-}
 
 export function AIFlashcardGenerator({ deckId, onCardsGenerated }) {
   const dispatch = useDispatch()
-  const loading = useSelector((state) => state.ai.loading)
+  const loading = useSelector((state) => state.flashcards.loading)
   const [open, setOpen] = useState(false)
   const [topic, setTopic] = useState("")
   const [content, setContent] = useState("")
@@ -53,31 +21,16 @@ export function AIFlashcardGenerator({ deckId, onCardsGenerated }) {
   const handleGenerate = async () => {
     if (!topic.trim() || !content.trim()) return
 
-    dispatch(setLoading(true))
     try {
-      const cards = await generateFlashcardsFromText(content, topic)
-      setGeneratedCards(cards)
-      dispatch(addGeneratedFlashcards(cards))
+      const result = await dispatch(generateFlashcards({ deckId, topic, content })).unwrap()
+      setGeneratedCards(result)
+      onCardsGenerated?.()
     } catch (error) {
       console.error("Error generating flashcards:", error)
-    } finally {
-      dispatch(setLoading(false))
     }
   }
 
   const handleAddCards = () => {
-    generatedCards.forEach((card) => {
-      dispatch(
-        addCard({
-          ...card,
-          deckId,
-          easiness: 2.5,
-          interval: 1,
-          repetitions: 0,
-          dueDate: new Date(),
-        }),
-      )
-    })
     setTopic("")
     setContent("")
     setGeneratedCards([])
@@ -143,18 +96,18 @@ export function AIFlashcardGenerator({ deckId, onCardsGenerated }) {
             </div>
             <div className="space-y-3 max-h-96 overflow-y-auto">
               {generatedCards.map((card, idx) => (
-                <Card key={card.id} className="bg-muted/50">
+                <Card key={card._id} className="bg-muted/50">
                   <CardContent className="pt-4">
                     <p className="text-xs text-muted-foreground mb-2">Card {idx + 1}</p>
-                    <p className="font-medium text-sm mb-2">Q: {card.question}</p>
-                    <p className="text-sm text-muted-foreground">A: {card.answer}</p>
+                    <p className="font-medium text-sm mb-2">Q: {card.front}</p>
+                    <p className="text-sm text-muted-foreground">A: {card.back}</p>
                   </CardContent>
                 </Card>
               ))}
             </div>
             <div className="flex gap-2">
               <Button onClick={handleAddCards} className="flex-1">
-                Add All Cards
+                Done
               </Button>
               <Button
                 variant="outline"

@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { deleteGeneratedNote } from "@/lib/slices/noteGenerationSlice"
 import { Download, Trash2, Copy, CheckCircle2, Clock } from "lucide-react"
+import ReactMarkdown from "react-markdown"
 
 export function GeneratedNotesDisplay({ note }) {
   const dispatch = useDispatch()
@@ -68,8 +69,8 @@ export function GeneratedNotesDisplay({ note }) {
       <CardContent className="space-y-4">
         {/* Generated Content */}
         <div className="bg-muted/50 rounded-lg p-4 max-h-96 overflow-y-auto">
-          <div className="prose prose-sm dark:prose-invert max-w-none text-sm md:text-base leading-relaxed whitespace-pre-wrap">
-            {note.content}
+          <div className="prose prose-sm dark:prose-invert max-w-none text-sm md:text-base leading-relaxed">
+            <ReactMarkdown>{note.content}</ReactMarkdown>
           </div>
         </div>
 

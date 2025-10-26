@@ -28,21 +28,21 @@ export function QuestionDetailCard({ question, questionIndex, userAnswer, isCorr
     setTimeout(() => {
       const aiExplanationText = `
         <strong>Detailed Analysis:</strong><br/>
-        <p>The correct answer is "<strong>${question.options[question.correct]}</strong>"</p>
-        
+        <p>The correct answer is "<strong>${question.correctAnswer}</strong>"</p>
+
         <strong>Why this is correct:</strong><br/>
         <p>${question.explanation}</p>
-        
+
         <strong>Why your answer was incorrect:</strong><br/>
         <p>You selected "${userAnswer}". This is a common misconception because it doesn't follow the proper methodology. The key concept here is understanding ${question.question.toLowerCase().split(" ").slice(0, 3).join(" ")}.</p>
-        
+
         <strong>Related Concepts:</strong><br/>
         <ul style="margin-left: 20px; margin-top: 8px;">
           <li>Fundamental principle: Understanding the core concept</li>
           <li>Common mistakes: Misapplying formulas or rules</li>
           <li>Practice tip: Review similar problems to strengthen understanding</li>
         </ul>
-        
+
         <strong>Recommended Study Resources:</strong><br/>
         <ul style="margin-left: 20px; margin-top: 8px;">
           <li>Review Chapter 2: Algebra Basics (Pages 45-78)</li>
@@ -61,15 +61,14 @@ export function QuestionDetailCard({ question, questionIndex, userAnswer, isCorr
     }, 1500)
   }
 
-  const correctAnswer = question.options[question.correct]
+  const correctAnswer = question.correctAnswer
 
   return (
     <Card
-      className={`transition-all ${
-        isCorrect
+      className={`transition-all ${isCorrect
           ? "border-green-500/30 bg-gradient-to-r from-green-500/5 to-transparent"
           : "border-red-500/30 bg-gradient-to-r from-red-500/5 to-transparent"
-      }`}
+        }`}
     >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-4">
@@ -84,9 +83,8 @@ export function QuestionDetailCard({ question, questionIndex, userAnswer, isCorr
                 Question {questionIndex + 1} of {totalQuestions}
               </CardTitle>
               <span
-                className={`ml-auto px-3 py-1 rounded-full text-xs font-semibold ${
-                  isCorrect ? "bg-green-500/20 text-green-700" : "bg-red-500/20 text-red-700"
-                }`}
+                className={`ml-auto px-3 py-1 rounded-full text-xs font-semibold ${isCorrect ? "bg-green-500/20 text-green-700" : "bg-red-500/20 text-red-700"
+                  }`}
               >
                 {isCorrect ? "Correct" : "Incorrect"}
               </span>
@@ -118,28 +116,26 @@ export function QuestionDetailCard({ question, questionIndex, userAnswer, isCorr
           <div className="grid gap-2">
             {question.options.map((option, idx) => {
               const isUserSelected = option === userAnswer
-              const isCorrectOption = idx === question.correct
+              const isCorrectOption = option === correctAnswer
 
               return (
                 <div
                   key={idx}
-                  className={`p-3 rounded-lg border-2 transition-all ${
-                    isCorrectOption
+                  className={`p-3 rounded-lg border-2 transition-all ${isCorrectOption
                       ? "border-green-500/50 bg-green-500/10"
                       : isUserSelected
                         ? "border-red-500/50 bg-red-500/10"
                         : "border-border bg-muted/30"
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center gap-3">
                     <div
-                      className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 text-xs font-bold ${
-                        isCorrectOption
+                      className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 text-xs font-bold ${isCorrectOption
                           ? "border-green-500 bg-green-500 text-white"
                           : isUserSelected
                             ? "border-red-500 bg-red-500 text-white"
                             : "border-border"
-                      }`}
+                        }`}
                     >
                       {isCorrectOption ? "✓" : isUserSelected ? "✗" : String.fromCharCode(65 + idx)}
                     </div>

@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { useSelector } from "react-redux"
+import { useState, useEffect } from "react"
+import { useSelector, useDispatch } from "react-redux"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -10,13 +10,38 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { QuizGenerator } from "@/components/quiz-generator"
 import { Plus, BookOpen, Play, Search } from "lucide-react"
 import Link from "next/link"
+import { fetchQuizzes } from "@/lib/slices/quizzesSlice"
+import { setFiles } from "@/lib/slices/filesSlice"
+import { recordActivity } from "@/lib/slices/activitySlice"
 
 export default function QuizzesPage() {
+  const dispatch = useDispatch()
   const quizzes = useSelector((state) => state.quizzes.quizzes)
   const [showGenerator, setShowGenerator] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [filterDifficulty, setFilterDifficulty] = useState("all")
   const [filterCategory, setFilterCategory] = useState("all")
+
+  // Fetch quizzes and files on component mount
+  useEffect(() => {
+    dispatch(fetchQuizzes())
+
+    const fetchFiles = async () => {
+      try {
+        const response = await fetch('/api/files')
+        if (response.ok) {
+          const data = await response.json()
+          dispatch(setFiles(data.files))
+        } else {
+          console.error('Failed to fetch files')
+        }
+      } catch (error) {
+        console.error('Error fetching files:', error)
+      }
+    }
+
+    fetchFiles()
+  }, [dispatch])
 
   // Get unique categories
   const categories = ["all", ...new Set(quizzes.map((q) => q.category))]
@@ -128,12 +153,12 @@ export default function QuizzesPage() {
               <h2 className="text-xl font-semibold">{category}</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {categoryQuizzes.map((quiz) => (
-                  <Card key={quiz.id} className="hover:border-primary transition-colors flex flex-col">
+                  <Card key={quiz._id || quiz.id} className="hover:border-primary transition-colors flex flex-col">
                     <CardHeader>
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1">
                           <CardTitle className="text-lg line-clamp-2">{quiz.title}</CardTitle>
-                          <p className="text-xs text-muted-foreground mt-1">{quiz.fileName}</p>
+                          <p className="text-xs text-muted-foreground mt-1">{quiz.fileName || quiz.fileId}</p>
                         </div>
                       </div>
                     </CardHeader>
@@ -147,7 +172,7 @@ export default function QuizzesPage() {
                             {quiz.difficulty.charAt(0).toUpperCase() + quiz.difficulty.slice(1)}
                           </span>
                           <span className="text-xs px-2 py-1 rounded bg-muted text-muted-foreground">
-                            {quiz.totalQuestions} Questions
+                            {quiz.questions?.length || quiz.numQuestions || 0} Questions
                           </span>
                         </div>
                       </div>
@@ -155,16 +180,16 @@ export default function QuizzesPage() {
                       <div className="grid grid-cols-2 gap-2 text-sm mt-auto">
                         <div className="p-2 bg-muted rounded">
                           <p className="text-muted-foreground text-xs">Score</p>
-                          <p className="font-bold">{quiz.totalScore}</p>
+                          <p className="font-bold">{quiz.totalScore || 0}</p>
                         </div>
                         <div className="p-2 bg-muted rounded">
                           <p className="text-muted-foreground text-xs">Time</p>
-                          <p className="font-bold">{quiz.timeLimit} min</p>
+                          <p className="font-bold">{quiz.timeLimit || 30} min</p>
                         </div>
                       </div>
 
-                      <Link href={`/quizzes/${quiz.id}`} className="w-full">
-                        <Button className="w-full">
+                      <Link href={`/quizzes/${quiz._id || quiz.id}`} className="w-full">
+                        <Button className="w-full" onClick={() => dispatch(recordActivity({ action: "quiz_taken", details: { quizId: quiz._id || quiz.id } }))}>
                           <Play className="w-4 h-4 mr-2" />
                           Take Quiz
                         </Button>

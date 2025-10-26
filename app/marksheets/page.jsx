@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { useSelector } from "react-redux"
+import { useState, useEffect } from "react"
+import { useSelector, useDispatch } from "react-redux"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -21,65 +21,46 @@ import {
 } from "recharts"
 import { Download } from "lucide-react"
 import Link from "next/link"
-
-// Mock questions data
-const mockQuestions = [
-  {
-    id: 1,
-    question: "What is the derivative of x²?",
-    options: ["2x", "x", "2", "x²"],
-    correct: "2x",
-    correctIndex: 0,
-  },
-  {
-    id: 2,
-    question: "What is the integral of 2x?",
-    options: ["x²", "2x²", "x² + C", "2x + C"],
-    correct: "x² + C",
-    correctIndex: 2,
-  },
-  {
-    id: 3,
-    question: "What is the value of π?",
-    options: ["3.12", "3.14", "3.16", "3.18"],
-    correct: "3.14",
-    correctIndex: 1,
-  },
-  {
-    id: 4,
-    question: "What is 5 + 3 × 2?",
-    options: ["16", "11", "13", "10"],
-    correct: "11",
-    correctIndex: 1,
-  },
-  {
-    id: 5,
-    question: "What is the square root of 144?",
-    options: ["10", "11", "12", "13"],
-    correct: "12",
-    correctIndex: 2,
-  },
-]
+import { fetchQuizResults } from "@/lib/slices/quizzesSlice"
 
 export default function MarksheetsPage() {
+  const dispatch = useDispatch()
   const results = useSelector((state) => state.quizzes.results)
   const quizzes = useSelector((state) => state.quizzes.quizzes)
+  const loading = useSelector((state) => state.quizzes.loading)
   const [expandedResult, setExpandedResult] = useState(null)
+
+  useEffect(() => {
+    dispatch(fetchQuizResults())
+  }, [dispatch])
 
   // Prepare data for charts
   const chartData = results.map((result) => {
-    const quiz = quizzes.find((q) => q.id === result.quizId)
+    const quiz = quizzes.find((q) => q._id === result.quizId._id || q.id === result.quizId)
     return {
       name: quiz?.title || "Quiz",
       score: result.score,
-      total: result.totalScore,
-      percentage: Math.round((result.score / result.totalScore) * 100),
+      total: result.totalQuestions * 10, // Assuming 10 points per question
+      percentage: result.percentage,
     }
   })
 
   const totalScore = results.reduce((sum, r) => sum + r.score, 0)
-  const totalPossible = results.reduce((sum, r) => sum + r.totalScore, 0)
+  const totalPossible = results.reduce((sum, r) => sum + (r.totalQuestions * 10), 0)
   const averagePercentage = results.length > 0 ? Math.round((totalScore / totalPossible) * 100) : 0
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading your marksheets...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    )
+  }
 
   return (
     <DashboardLayout>
@@ -133,7 +114,7 @@ export default function MarksheetsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-green-600">
-                {results.length > 0 ? Math.max(...results.map((r) => Math.round((r.score / r.totalScore) * 100))) : 0}%
+                {results.length > 0 ? Math.max(...results.map((r) => r.percentage)) : 0}%
               </div>
               <p className="text-xs text-muted-foreground mt-1">Highest percentage</p>
             </CardContent>
@@ -209,7 +190,7 @@ export default function MarksheetsPage() {
                     <tbody>
                       {chartData.map((row, idx) => {
                         const result = results[idx]
-                        const quiz = quizzes.find((q) => q.id === result.quizId)
+                        const quiz = result.quizId
                         return (
                           <tr key={idx} className="border-b border-border hover:bg-muted/50">
                             <td className="py-3 px-4">{row.name}</td>
@@ -222,10 +203,10 @@ export default function MarksheetsPage() {
                               </span>
                             </td>
                             <td className="py-3 px-4 text-muted-foreground">
-                              {result?.date ? new Date(result.date).toLocaleDateString() : "N/A"}
+                              {result.createdAt ? new Date(result.createdAt).toLocaleDateString() : "N/A"}
                             </td>
                             <td className="py-3 px-4">
-                              <Link href={`/quizzes/${result.quizId}/detailed-answers`}>
+                              <Link href={`/quizzes/${result.quizId._id || result.quizId}/detailed-answers`}>
                                 <Button variant="outline" size="sm">
                                   View Answers
                                 </Button>
@@ -247,52 +228,60 @@ export default function MarksheetsPage() {
                 <CardTitle>Answer Review with AI Explanations</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {mockQuestions.map((q, idx) => {
-                  const isCorrect = idx % 2 === 0 // Mock: alternate correct/incorrect
-                  const userAnswer = q.options[(idx + 1) % q.options.length]
+                {results.length > 0 && results[0].answers ? (
+                  results[0].answers.map((answer, idx) => {
+                    const quiz = results[0].quizId
+                    const question = quiz.questions?.find((q) => q.id === answer.questionId)
+                    const isCorrect = answer.isCorrect
+                    const userAnswer = answer.selectedAnswer
+                    const correctAnswer = question?.correctAnswer
 
-                  return (
-                    <div
-                      key={q.id}
-                      className={`p-4 rounded-lg border-2 ${
-                        isCorrect ? "border-green-500/30 bg-green-500/5" : "border-red-500/30 bg-red-500/5"
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <span className={`text-sm font-bold ${isCorrect ? "text-green-600" : "text-red-600"}`}>
-                              {isCorrect ? "✓" : "✗"}
-                            </span>
-                            <p className="font-medium text-sm">{q.question}</p>
-                          </div>
-
-                          <div className="grid md:grid-cols-2 gap-3 mt-3">
-                            <div className="text-sm">
-                              <p className="text-xs text-muted-foreground mb-1">Your Answer:</p>
-                              <p className={`font-medium ${isCorrect ? "text-green-600" : "text-red-600"}`}>
-                                {userAnswer}
-                              </p>
+                    return (
+                      <div
+                        key={idx}
+                        className={`p-4 rounded-lg border-2 ${isCorrect ? "border-green-500/30 bg-green-500/5" : "border-red-500/30 bg-red-500/5"
+                          }`}
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className={`text-sm font-bold ${isCorrect ? "text-green-600" : "text-red-600"}`}>
+                                {isCorrect ? "✓" : "✗"}
+                              </span>
+                              <p className="font-medium text-sm">{question?.question || "Question not found"}</p>
                             </div>
-                            {!isCorrect && (
-                              <div className="text-sm">
-                                <p className="text-xs text-muted-foreground mb-1">Correct Answer:</p>
-                                <p className="font-medium text-green-600">{q.correct}</p>
-                              </div>
-                            )}
-                          </div>
-                        </div>
 
-                        <AIAnswerExplainer
-                          question={q.question}
-                          correctAnswer={q.correct}
-                          userAnswer={userAnswer}
-                          isCorrect={isCorrect}
-                        />
+                            <div className="grid md:grid-cols-2 gap-3 mt-3">
+                              <div className="text-sm">
+                                <p className="text-xs text-muted-foreground mb-1">Your Answer:</p>
+                                <p className={`font-medium ${isCorrect ? "text-green-600" : "text-red-600"}`}>
+                                  {userAnswer}
+                                </p>
+                              </div>
+                              {!isCorrect && (
+                                <div className="text-sm">
+                                  <p className="text-xs text-muted-foreground mb-1">Correct Answer:</p>
+                                  <p className="font-medium text-green-600">{correctAnswer}</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <AIAnswerExplainer
+                            question={question?.question || ""}
+                            correctAnswer={correctAnswer}
+                            userAnswer={userAnswer}
+                            isCorrect={isCorrect}
+                          />
+                        </div>
                       </div>
-                    </div>
-                  )
-                })}
+                    )
+                  })
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground">No detailed answers available</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

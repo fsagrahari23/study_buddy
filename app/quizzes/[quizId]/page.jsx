@@ -1,12 +1,14 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useSelector, useDispatch } from "react-redux"
 import { useParams, useRouter } from "next/navigation"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { addResult } from "@/lib/slices/quizzesSlice"
+import { fetchQuizzes } from "@/lib/slices/quizzesSlice"
+import { submitQuizAnswers } from "@/lib/slices/quizzesSlice"
 import { ChevronLeft, ChevronRight, Clock, BookOpen } from "lucide-react"
 import Link from "next/link"
 
@@ -15,12 +17,19 @@ export default function QuizPage() {
   const router = useRouter()
   const quizId = params.quizId
   const dispatch = useDispatch()
-  const quiz = useSelector((state) => state.quizzes.quizzes.find((q) => q.id === quizId))
+  const quiz = useSelector((state) => state.quizzes.quizzes.find((q) => q._id === quizId || q.id === quizId))
 
   const [currentQuestion, setCurrentQuestion] = useState(0)
   const [answers, setAnswers] = useState({})
   const [showResults, setShowResults] = useState(false)
   const [timeSpent, setTimeSpent] = useState(0)
+
+  // Fetch quizzes on component mount if not already loaded
+  useEffect(() => {
+    if (!quiz) {
+      dispatch(fetchQuizzes())
+    }
+  }, [dispatch, quiz])
 
   // Use quiz questions or fallback
   const questions = quiz?.questions || []
@@ -46,41 +55,69 @@ export default function QuizPage() {
     }
   }
 
-  const calculateScore = () => {
-    let correct = 0
-    questions.forEach((q, idx) => {
-      if (answers[idx] === q.correct) {
-        correct++
-      }
-    })
+  const calculateScore = async () => {
+    // Convert answers object to array format expected by API
+    const answersArray = questions.map((q, idx) => ({
+      questionId: q.id,
+      selectedAnswer: q.options[answers[idx]],
+      isCorrect: q.options[answers[idx]] === q.correctAnswer,
+    }))
 
-    const score = Math.round((correct / questions.length) * quiz.totalScore)
+    const correctCount = answersArray.filter(a => a.isCorrect).length
+    const score = Math.round((correctCount / questions.length) * 100) // Score out of 100
 
-    dispatch(
-      addResult({
-        id: Date.now().toString(),
-        quizId: quiz.id,
-        score: score,
-        totalScore: quiz.totalScore,
-        correctAnswers: correct,
-        totalQuestions: questions.length,
-        date: new Date(),
-        timeSpent: timeSpent,
-      }),
-    )
+    // Submit to API and Redux
+    try {
+      await dispatch(submitQuizAnswers({
+        quizId: quiz._id || quiz.id,
+        answers: answersArray,
+      })).unwrap()
+
+      // Also add to local state for immediate display
+      dispatch(
+        addResult({
+          id: Date.now().toString(),
+          quizId: quiz._id || quiz.id,
+          score: score,
+          totalScore: 100,
+          correctAnswers: correctCount,
+          totalQuestions: questions.length,
+          date: new Date(),
+          timeSpent: timeSpent,
+        }),
+      )
+    } catch (error) {
+      console.error("Error submitting quiz:", error)
+      // Fallback to local state only
+      dispatch(
+        addResult({
+          id: Date.now().toString(),
+          quizId: quiz._id || quiz.id,
+          score: score,
+          totalScore: 100,
+          correctAnswers: correctCount,
+          totalQuestions: questions.length,
+          date: new Date(),
+          timeSpent: timeSpent,
+        }),
+      )
+    }
 
     setShowResults(true)
   }
 
   const score = Object.keys(answers).reduce((acc, idx) => {
-    return acc + (answers[idx] === questions[idx].correct ? 1 : 0)
+    const question = questions[idx]
+    const userAnswer = question?.options[answers[idx]]
+    return acc + (userAnswer === question?.correctAnswer ? 1 : 0)
   }, 0)
 
   if (!quiz) {
     return (
       <DashboardLayout>
         <div className="text-center py-12">
-          <p className="text-muted-foreground">Quiz not found</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading quiz...</p>
         </div>
       </DashboardLayout>
     )
@@ -116,9 +153,7 @@ export default function QuizPage() {
               </div>
               <div className="p-4 bg-blue-500/10 rounded-lg border border-blue-500/20">
                 <p className="text-sm text-muted-foreground">Final Score</p>
-                <p className="text-3xl font-bold text-blue-600">
-                  {Math.round((score / questions.length) * quiz.totalScore)}
-                </p>
+                <p className="text-3xl font-bold text-blue-600">{percentage}</p>
               </div>
             </div>
 
@@ -151,7 +186,7 @@ export default function QuizPage() {
             </div>
             <div className="flex items-center gap-1">
               <Clock className="w-4 h-4" />
-              {quiz.timeLimit} minutes
+              {quiz.timeLimit || 30} minutes
             </div>
           </div>
         </div>
@@ -185,15 +220,13 @@ export default function QuizPage() {
                 <button
                   key={idx}
                   onClick={() => handleSelectAnswer(idx)}
-                  className={`w-full p-4 text-left rounded-lg border-2 transition-colors ${
-                    selectedAnswer === idx ? "border-primary bg-primary/10" : "border-border hover:border-primary/50"
-                  }`}
+                  className={`w-full p-4 text-left rounded-lg border-2 transition-colors ${selectedAnswer === idx ? "border-primary bg-primary/10" : "border-border hover:border-primary/50"
+                    }`}
                 >
                   <div className="flex items-center gap-3">
                     <div
-                      className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                        selectedAnswer === idx ? "border-primary bg-primary" : "border-border"
-                      }`}
+                      className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${selectedAnswer === idx ? "border-primary bg-primary" : "border-border"
+                        }`}
                     >
                       {selectedAnswer === idx && <div className="w-2 h-2 bg-white rounded-full" />}
                     </div>
